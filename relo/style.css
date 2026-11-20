@@ -219,3 +219,34 @@ hr{border:0;border-top:1px solid var(--border);margin:22px 0}
 
 .mobile-learning-controls{display:none}
 @media(max-width:900px){.mobile-learning-controls{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:9px;padding:3px 4px 0}}
+/* R1 Repair: content-specific controls sit with the material rather than in global navigation. */
+.word-hero{padding-bottom:24px}
+.word-audio{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:8px}
+.word-audio .phonetic{margin-top:0}
+.speak-button{display:inline-flex;align-items:center;gap:7px;min-height:36px;padding:7px 12px;border:1px solid #d9e8dc;border-radius:100px;background:#f5faf6;color:#2c6d4c;font-size:12px;line-height:1.35;font-weight:680;max-width:100%;text-align:left}
+.speak-button:hover{background:#e8f4ec;border-color:#acd0b6}
+.speak-button:active{transform:translateY(1px)}
+.speak-button span{font-size:15px;color:#277d54;line-height:1}
+.audio-feedback{margin:10px 0 0;padding:10px 13px;background:#f7f9f5;border-left:3px solid #afcbb6;border-radius:0 9px 9px 0;color:#667a6c;font-size:12px;line-height:1.65}
+.word-choice-title{margin:0 0 15px;font-size:15px;font-weight:660;color:#375443}
+.word-choice-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.word-choice{width:100%;min-height:54px;padding:11px 7px;font-size:13px;line-height:1.5;font-weight:650}
+.word-direct{padding:10px 0;margin:12px 0 0;background:transparent;color:var(--forest);font-size:13px;font-weight:640}
+.word-direct:hover{text-decoration:underline}
+.word-recall-stage{padding:21px 22px 23px;border:1px solid #dfeade;border-radius:15px;background:#f8fbf7}
+.word-recall-stage .eyebrow{color:#518567}
+.word-recall-stage p{color:#506b5a;margin:12px 0 5px;font-size:15px;line-height:1.85}
+.word-recall-stage .bottom-actions{margin-top:16px}
+.meaning-example{color:#314f3c!important;font-size:19px!important;font-weight:560;line-height:1.65!important;margin-top:13px!important}
+.meaning-actions,.sentence-audio,.question-audio{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.meaning-actions{margin-top:15px}
+.sentence-audio{margin:16px 0 0}
+.question-audio{margin:-8px 0 18px}
+.question-hero .question-instruction{margin-top:6px}
+@media(max-width:650px){
+  .word-choice-row{grid-template-columns:1fr;gap:8px}
+  .word-choice{min-height:46px;text-align:left;justify-content:flex-start;padding:10px 16px}
+  .word-audio{align-items:flex-start}
+  .word-recall-stage{padding:18px}
+  .speak-button{font-size:12px}
+}
