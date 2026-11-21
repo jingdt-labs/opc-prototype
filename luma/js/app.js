@@ -1,9 +1,11 @@
 import { intents, sampleWords, wordById, goalScope, goalPerformance, goalEvidence } from '../data/sample-data.js';
 import { state, change, resetDemo, allEvidence, timeLabel } from './state.js';
 import { studioScenarios, scenarioById, exampleById } from '../data/experience-data.js';
+import { vocabularyGuides } from '../data/vocabulary-data.js';
 import { currentPreview, beginPreview, pausePreview, resumePreview, previewHint,
   previewAudioCompleted, previewAudioError, previewRevealText, previewDraft,
-  previewSubmit, previewOutcome, previewNext, previewFeedback } from './variant-flow.js';
+  previewSubmit, previewOutcome, previewNext, previewFeedback,
+  previewOpenLearn, previewLearnPractice, previewLearnExposure } from './variant-flow.js';
 import { wordStatus, reviewDueIds, reviewWaitingIds, summary, nextBatch, startLesson, currentTask, hint, recordAnswer, nextTask, pauseLesson, abandonLesson, latestOutcome, resultDisplay } from './learning.js';
 
 const root = document.getElementById('app');
@@ -19,7 +21,8 @@ const symbolPaths = {
   check: '<path d="m5 12 4 4L19 6"/>',
   replay: '<path d="M3 11a9 9 0 1 1 3 7"/><path d="M3 4v7h7"/>',
   info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5m0-8h.01"/>',
-  play: '<path d="m8 5 11 7-11 7Z"/>'
+  play: '<path d="m8 5 11 7-11 7Z"/>',
+  book: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5v14Z"/><path d="M4 5.5A2.5 2.5 0 0 1 6.5 8H20"/>'
 };
 const icon = (name) => '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (symbolPaths[name] || '') + '</svg>';
 const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
@@ -223,7 +226,7 @@ function progressPage() {
   </main>`,'学习进步');
 }
 function focusLayout({ progress, progressPercent, inside, controls, caption, phaseClass='' , isPreview=false, variantKind='' }) {
-  return `<main class="focus-page ${isPreview?'focus-preview '+variantKind:''}">
+  return `<main class="focus-page ${isPreview?'focus-preview '+variantKind:''} ${phaseClass==='is-learn'?'is-learn':''}">
     <header class="focus-topbar">
       <div class="focus-brand"><span class="brand-mark">✦</span><span>专注学习</span>${isPreview?'<span class="review-indicator">R2 评审演示</span>':''}</div>
       <div class="focus-progress"><span>${progress}</span>
@@ -305,7 +308,7 @@ function studioPage() {
     <div class="studio-back">${go('workspace',icon('arrow')+' 返回日常学习','btn-ghost btn-sm')}</div>
     <header class="page-heading"><div class="eyebrow">R2 · HUMAN REVIEW SPACE</div>
       <h1>同一学习空间，不同的学习方式。</h1>
-      <p>以下是给产品评审者的<strong>独立演示样本</strong>，不会修改已经确认的 Goal，也不会影响学生日常学习证据与复习安排。</p>
+      <p>先体验两条 Learn / Practice 学习路径，再探索五种原有练习模式。所有样本独立于日常 Goal 和学习记录。</p>
     </header>
     <section class="studio-context" aria-label="两类目标的区别">
       <div><span class="muted-label">学生当前真实 Goal（R1）</span><strong>${esc(goalPerformance)}</strong><small>${esc(goalScope)}</small></div>
@@ -313,7 +316,7 @@ function studioPage() {
       <div><span class="muted-label">R2 评审中的临时 Goal</span><strong>按下方演示切换</strong><small>仅改变本次 Task 与材料，原 Goal 始终保留</small></div>
     </section>
     ${current ? `<div class="studio-resume"><div><strong>上次的评审体验还在</strong><p>已保留本题阶段、提示与已播放信息。可继续，也可开始另一项样本。</p></div>${button('继续当前演示 '+icon('arrow'),'studio-resume','btn-primary btn-sm')}</div>` : ''}
-    <div class="section-head" style="margin-top:28px"><div><div class="eyebrow">Limited patterns · Five examples</div>
+    <div class="section-head" style="margin-top:28px"><div><div class="eyebrow">Learn & Practice · Seven examples</div>
       <h2>选择一个学习情境</h2></div><span class="chip">样本内容 · 非真实试题</span></div>
     <section class="studio-grid" aria-label="R2 核心动态学习样本">
       ${studioScenarios.map(sc=>`<article class="studio-card">
@@ -330,15 +333,46 @@ function studioPage() {
     <div class="studio-evidence"><div><span class="eyebrow">Review-only evidence</span><h3>最近的评审尝试</h3></div>
       ${events.length ? events.slice(-4).reverse().map(e=>`<div class="studio-evidence-item">
         <strong>${esc(scenarioById[e.scenarioId]?.subtitle||'学习尝试')} · ${esc(e.response)}</strong>
-        <small>${esc(e.result==='independent-correct'?'本次条件下独立正确':e.result==='supported-correct'?'受支持正确':e.result==='practice-correct'?'看过答案后的练习':e.result==='unknown'?'主动选择不知道':e.result==='unverified'?'不作确定评价':'本次未完成')} · ${e.hintUsed?'用过提示 · ':''}${e.audioPlayed?'实际完成语音播放 '+e.audioPlays+' 次 · ':''}${e.textRevealed?'显示过文本 · ':''}仅供评审</small>
+        <small>${esc(e.result==='independent-correct'?'本次条件下独立正确':e.result==='supported-correct'?'受支持正确':e.result==='practice-correct'?'看过答案后的练习':e.result==='unknown'?'主动选择不知道':e.result==='unverified'?'不作确定评价':'本次未完成')} · ${e.learnedBeforeAttempt?'看过学习材料 · ':''}${e.sameMaterialRecent?'短时间同材料重复 · ':''}${e.hintUsed?'用过提示 · ':''}${e.audioPlayed?'实际完成语音播放 '+e.audioPlays+' 次 · ':''}${e.textRevealed?'显示过文本 · ':''}仅供评审</small>
       </div>`).join('') : '<p class="mini text-muted">尚无 R2 演示记录。体验任意任务后会显示具体观察条件。</p>'}
     </div>
   </main>`,'R2 · 交互评审');
+}
+function vocabularyLearnFocus(p,task,sc) {
+  const guide=vocabularyGuides[task.learnKey];
+  if(!guide) return studioPage();
+  const sections=guide.sections.map(section=>`
+    <details class="learn-section" data-learn-section="${esc(section.id)}" ${p.openSections?.includes(section.id)?'open':''}>
+      <summary><span class="learn-summary-text"><strong>${esc(section.title)}</strong><small>${esc(section.teaser)}</small></span><span class="learn-chevron" aria-hidden="true">＋</span></summary>
+      <dl class="learn-facts">${section.lines.map(([term,meaning])=>`<div class="learn-fact"><dt>${esc(term)}</dt><dd>${esc(meaning)}</dd></div>`).join('')}</dl>
+    </details>`).join('');
+  const inside=`<div class="focus-eyebrow"><span class="focus-kicker">LEARN · ${esc(sc.subtitle)}</span><span>先理解，再决定什么时候练</span></div>
+    <div class="learn-hero">
+      <div class="learn-hero-heading"><span class="learn-eyebrow">TODAY'S LANGUAGE RESOURCE</span><span class="chip">当前重点：${esc(guide.focus)}</span></div>
+      <div class="learn-word-row"><h1 class="learn-word">${esc(guide.word)}</h1>
+        ${button(icon('play')+' 听发音','studio-learn-play','btn-soft btn-sm')}</div>
+      <div class="learn-phonetic">${esc(guide.ipa)} <span>· ${esc(guide.partOfSpeech)}</span></div>
+      <div class="learn-audio-status" role="status">点击发音可听到浏览器语音示范</div>
+      <div class="learn-meaning"><small>核心词义</small><strong>${esc(guide.meaning)}</strong></div>
+      <div class="learn-example"><span>先读懂一个简单句子</span><p>${esc(guide.example)}</p><strong>${esc(guide.translation)}</strong></div>
+    </div>
+    <div class="learn-more-head"><div><h2>想知道更多？</h2><p>词形、搭配、易混表达等材料可以按需展开，不必一次全部记住。</p></div><span>${guide.sections.length} 组补充材料</span></div>
+    <div class="learn-section-stack">${sections}</div>
+    <div class="learn-evidence-note">${icon('info')} <span>你已接触这些讲解材料，<strong>不等于已经独立掌握</strong>。随时可以开始练习；本次先看过词义的条件会保留在演示记录里。</span></div>`;
+  const controls=`<small>按需阅读，不必读完全部材料 · 可以随时暂停</small>
+      ${button((p.learnReturn==='next'?'换一句话，再练一练':'现在去练一练')+' '+icon('arrow'),'studio-learn-practice','btn-primary focus-next')}`;
+  return focusLayout({
+    progress:`词汇学习 · ${esc(guide.word)} · ${esc(sc.subtitle)}`,
+    progressPercent:Math.round(100*p.index/p.queue.length),
+    inside, controls, phaseClass:'is-learn', isPreview:true,variantKind:'preview-learn',
+    caption:'词汇知识是学习对象；发音、例句和辨析是帮助你理解它的学习材料。'
+  });
 }
 function variantFocus() {
   const p=state.previewSession, task=currentPreview(state);
   if (!p || !task) return studioPage();
   const sc=scenarioById[p.scenarioId];
+  if (p.phase==='learn') return vocabularyLearnFocus(p,task,sc);
   const feedback=p.phase==='feedback';
   const event=feedback?previewOutcome(state):null;
   const [resultTitle,resultText,resultTone]=previewFeedback(event?.result,task);
@@ -346,11 +380,14 @@ function variantFocus() {
   const textStimulus=task.format==='audio'
     ? `<div class="studio-audio-stimulus">
         <span class="studio-sound-symbol" aria-hidden="true">${icon('play')}</span>
-        <h1>听一听，这个词。</h1><p>作答前不展示英文词形和中文释义。</p>
-        ${button(icon('play')+' '+(p.audioPlayed?'再听一次':'播放英文'),'studio-play','btn-primary')}
-        <span class="studio-audio-status" role="status">${p.audioPlayed?'已实际播放 '+p.audioPlays+' 次 · 可选择词义':p.audioError?esc(p.audioError):'使用浏览器本机语音合成 · 英语'}</span>
-        ${p.textRevealed?`<div class="studio-transcript"><span>已转为文字支持 · 不计为独立听辨</span><strong>${esc(task.audioText)}</strong></div>`:''}
-        ${!p.textRevealed?button('听不到？查看英文并转为支持学习','studio-transcript','btn-ghost btn-sm'):''}
+        <h1>${feedback?'这次听到的是':'听一听，这个词。'}</h1>
+        ${feedback?`<strong class="studio-feedback-word">${esc(task.audioText)}</strong>
+            <p>可以复听来学习发音，但不会改写刚才的听辨结果。</p>`
+          :'<p>作答前不展示英文词形和中文释义。</p>'}
+        ${button(icon('play')+' '+(feedback?'复听英文':p.audioPlayed?'再听一次':'播放英文'),'studio-play','btn-primary')}
+        <span class="studio-audio-status" role="status">${feedback?'反馈后的发音学习 · 不新增听辨证据':p.audioPlayed?'已实际播放 '+p.audioPlays+' 次 · 可选择词义':p.audioError?esc(p.audioError):'使用浏览器本机语音合成 · 英语'}</span>
+        ${!feedback && p.textRevealed?`<div class="studio-transcript"><span>已转为文字支持 · 不计为独立听辨</span><strong>${esc(task.audioText)}</strong></div>`:''}
+        ${!feedback && !p.textRevealed?button('听不到？查看英文并转为支持学习','studio-transcript','btn-ghost btn-sm'):''}
       </div>`
     : task.sentence ? `<div class="studio-context-stimulus"><span class="eyebrow">In context</span>
         <h1>${esc(task.sentence)}</h1><p>句子为原创模拟材料，不标注为真实考试题。</p></div>`
@@ -402,9 +439,11 @@ function variantFocus() {
     <div class="focus-stage">${responseControls}${feedbackPanel}</div>`;
   const canSubmit=task.format==='text' && p.draft.trim().length>0;
   const controls=feedback
-    ? `<small>${p.index+1<p.queue.length?'下一步由刚才的表现决定':'已记录这次具体条件 · Enter 继续'}</small>
+    ? `<div class="focus-assist">${task.learnKey?button(icon('book')+' 查看完整讲解','studio-learn','btn-soft btn-sm'):''}</div>
+      <small>${p.index+1<p.queue.length?'当前是即时支持练习，不是延迟复习':'已记录实际条件 · Enter 继续'}</small>
       ${button((p.index+1<p.queue.length?'继续支持练习':'完成体验，返回场景')+' '+icon('arrow'),'studio-next','btn-primary focus-next')}`
     : `<div class="focus-assist">
+        ${task.learnKey?button(icon('book')+' 先学一下','studio-learn','btn-soft btn-sm'):''}
         ${p.hintUsed?'<span class="chip">已查看提示</span>':button(icon('light')+' 给我一点提示','studio-hint','btn-outline btn-sm')}
         ${button('我不知道','studio-unknown','btn-ghost btn-sm')}
       </div>
@@ -482,32 +521,38 @@ function stopReviewSpeech() {
 }
 function playReviewSpeech() {
   const task=currentPreview(state), p=state.previewSession;
-  if (!task?.audioText || !p) return;
+  const speechText=p?.phase==='learn'?vocabularyGuides[task?.learnKey]?.pronunciation:task?.audioText;
+  if (!speechText || !p) return;
   const synth=window.speechSynthesis, Speech=window.SpeechSynthesisUtterance;
   if (!synth || typeof synth.speak!=='function' || typeof Speech!=='function') {
     if(p.phase==='ask' && task.format==='audio') transact(s=>previewAudioError(s,'此浏览器无法播放语音，可改为文字学习'));
     else {
-      const el=root.querySelector('.studio-after-audio span');
+      const el=root.querySelector('.learn-audio-status') || root.querySelector('.studio-after-audio span');
       if(el) el.textContent='此浏览器未提供英文语音，请以文字材料学习。';
     }
     return;
   }
   stopReviewSpeech();
-  const u=new Speech(task.audioText);
+  const u=new Speech(speechText);
   const previewId=p.id, taskId=task.id, beforeAnswer=p.phase==='ask' && task.format==='audio';
   u.lang='en-US'; u.rate=0.83; u.pitch=1;
   reviewSpeech=u;
   u.onstart=()=>{
     if(reviewSpeech!==u) return;
-    const status=root.querySelector('.studio-audio-status');
-    if(status) status.textContent='正在播放 · 请听清楚后作答';
+    const status=root.querySelector('.studio-audio-status') || root.querySelector('.learn-audio-status');
+    if(status) status.textContent='正在播放 · 请听清楚';
   };
   u.onend=()=>{
     if(reviewSpeech!==u) return;
     reviewSpeech=null;
     if(state.previewSession?.id===previewId && currentPreview(state)?.id===taskId && beforeAnswer) {
-      // Only a completed audible utterance unlocks an independent listening attempt.
+      // Only completed playback unlocks an independent listening attempt.
       transact(s=>previewAudioCompleted(s));
+    } else if(state.previewSession?.id===previewId && currentPreview(state)?.id===taskId &&
+      state.previewSession.phase==='learn') {
+      change(s=>previewLearnExposure(s,'audio'));
+      const status=root.querySelector('.learn-audio-status');
+      if(status) status.textContent='发音播放完成 · 仅为学习接触';
     }
   };
   u.onerror=()=>{
@@ -516,7 +561,7 @@ function playReviewSpeech() {
     if(state.previewSession?.id===previewId && currentPreview(state)?.id===taskId && beforeAnswer)
       transact(s=>previewAudioError(s,'本次发声未完成；请重试或改用文字支持'));
     else {
-      const el=root.querySelector('.studio-after-audio span');
+      const el=root.querySelector('.learn-audio-status') || root.querySelector('.studio-after-audio span');
       if(el) el.textContent='语音播放失败，未形成听辨证据。';
     }
   };
@@ -556,7 +601,10 @@ function clickAction(element) {
     case 'logout': transact(s=>{s.entered=false;s.screen='login';}); break;
     case 'reset': if(window.confirm('重置本机的 Luma 演示记录？这会清空 Goal、R1 尝试和独立的 R2 评审记录，并恢复预置示例历史。')){stopReviewSpeech();resetDemo();render();} break;
     case 'progress': transact(s=>s.screen='progress'); break;
-    case 'studio-start': transact(s=>beginPreview(s,element.dataset.scenario)); break;
+    case 'studio-start': stopReviewSpeech(); transact(s=>beginPreview(s,element.dataset.scenario)); break;
+    case 'studio-learn': stopReviewSpeech(); transact(s=>previewOpenLearn(s)); break;
+    case 'studio-learn-practice': stopReviewSpeech(); transact(s=>previewLearnPractice(s)); break;
+    case 'studio-learn-play': playReviewSpeech(); break;
     case 'studio-resume': transact(s=>resumePreview(s)); break;
     case 'studio-hint': transact(s=>previewHint(s)); break;
     case 'studio-transcript': stopReviewSpeech(); transact(s=>previewRevealText(s)); break;
@@ -572,6 +620,12 @@ root.addEventListener('click',event=>{
   const control=event.target.closest('[data-action]');
   if(control && root.contains(control) && !control.disabled) clickAction(control);
 });
+root.addEventListener('toggle', event => {
+  const section=event.target;
+  if(state.screen==='variant' && state.previewSession?.phase==='learn' &&
+    section.matches?.('[data-learn-section]') && section.open)
+    change(s=>previewLearnExposure(s,section.dataset.learnSection));
+},true);
 root.addEventListener('input', event => {
   if (state.screen !== 'variant' || event.target.id !== 'variant-answer') return;
   change(s=>previewDraft(s,event.target.value));

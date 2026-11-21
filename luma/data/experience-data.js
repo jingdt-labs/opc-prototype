@@ -1,6 +1,12 @@
 // R2 review-only learning materials. Authored samples, not actual exam questions.
 // These activities never change the learner's confirmed Goal or R1 Evidence.
 export const studioScenarios = [
+  { id:'learn-short', letter:'L1', title:'不认识？先看懂 short', subtitle:'Learn · 先学再练',
+    goal:'读懂 short 在简单句中的“短的”意思', performance:'书面词义辨认',
+    what:'先看到词义、发音与一个简单例句；其他义项、词形和搭配按需展开，再去练习。', startInLearn:true, taskIds:['learn-short-meaning'] },
+  { id:'learn-sometimes', letter:'L2', title:'似乎认识？试试 sometimes', subtitle:'Practice → Learn',
+    goal:'在句子中区分 sometimes 等易混表达', performance:'语境中的词语辨认',
+    what:'先独立选择。若混淆，再看有针对性的对比解释，回到一条新的练习句。', taskIds:['choose-sometimes'] },
   { id:'retrieve', letter:'A', title:'不看选项，自己想起词义', subtitle:'主动意义提取',
     goal:'看见英文，独立说出它的常见意义', performance:'主动意义提取',
     what:'同一个 because，从“辨认选项”变成“独立想起词义”。遇到困难时，切换为有帮助的辨认练习。', taskIds:['retrieve-because'] },
@@ -84,5 +90,34 @@ export const taskExamples = {
     audioText:'I stayed home because I felt ill.'
   }
 };
+Object.assign(taskExamples, {
+  'learn-short-meaning': {
+    id:'learn-short-meaning', scenario:'learn-short', wordId:'short', learnKey:'short',
+    format:'choice', performance:'written-recognition', materialId:'r2.learn.short.choice.v1',
+    sentence:'This is a short story.', instruction:'这句话里的 short 表示什么意思？',
+    expected:'短的', choices:['短的','安静的','困难的','遥远的'],
+    hint:'看看 story（故事）前面的形容词，说的是长短。',
+    explanation:'a short story 是“一个短故事”。short 还有“矮的”和“缺少的”等用法，要结合句子判断。'
+  },
+  'choose-sometimes': {
+    id:'choose-sometimes', scenario:'learn-sometimes', wordId:'sometimes', learnKey:'sometimes',
+    format:'choice', performance:'context-meaning', materialId:'r2.learn.sometimes.first.v1',
+    sentence:'I ___ walk to school.', instruction:'想表达“我有时步行上学”，应该填哪一个？',
+    expected:'sometimes', choices:['some time','sometime','sometimes','some times'],
+    hint:'这里需要表示频率的副词，意思是“有时”。',
+    explanation:'sometimes 是“有时”，表示事情偶尔发生；sometime 指“某个时候”，some time 指“一段时间”。',
+    afterMistake:'choose-sometimes-again'
+  },
+  'choose-sometimes-again': {
+    id:'choose-sometimes-again', scenario:'learn-sometimes', wordId:'sometimes', learnKey:'sometimes',
+    format:'choice', performance:'context-meaning', materialId:'r2.learn.sometimes.followup.v1',
+    sentence:'We ___ play basketball after school.',
+    instruction:'换一个简单句子，再认一认“有时”应该怎么写。',
+    expected:'sometimes', choices:['sometime','sometimes','some times','some time'],
+    hint:'想表达某件事偶尔会发生，而不是“一段时间”。',
+    explanation:'We sometimes play basketball after school.（我们有时放学后打篮球。）本轮紧接着学习，仍是即时巩固。',
+    supportedByDesign:true
+  }
+});
 export const scenarioById = Object.fromEntries(studioScenarios.map(item=>[item.id,item]));
 export const exampleById = taskExamples;

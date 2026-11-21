@@ -1,9 +1,59 @@
 import { scenarioById, exampleById } from '../data/experience-data.js';
+import { vocabularyGuides } from '../data/vocabulary-data.js';
 
 // R2 review preview is intentionally separate from the learner's R1 Goal, Session
 // and Evidence. No schema engine or production learning policy is implied.
-const normalized = value => String(value ?? '').trim().toLowerCase()
+const normalizedMeaning = value => String(value ?? '').trim().toLowerCase()
   .replace(/[\s。．，,！!]+/g,'');
+const normalizedSpelling = value => String(value ?? '').trim().toLowerCase();
+// Choices are authored options (including English phrases): their internal spaces are meaningful.
+const normalizedFor = task => task.format==='choice' || task.format==='audio' ||
+  task.performance==='written-form-production' ? normalizedSpelling : normalizedMeaning;
+const relevantWord = task => task.learnKey || task.wordId;
+const recent = (at, now) => {
+  const delta = Date.parse(now) - Date.parse(at);
+  return Number.isFinite(delta) && delta >= 0 && delta < 86400000; // 24h demo exposure window, not a retention rule
+};
+export function previewLearnExposure(s, section='core', now=new Date()) {
+  const task=currentPreview(s), p=s.previewSession;
+  const guide=task && vocabularyGuides[task.learnKey];
+  if (!guide || !p || p.phase!=='learn') return false;
+  if (!Array.isArray(s.previewLearnEvents)) s.previewLearnEvents=[];
+  if (section!=='core' && section!=='audio' && !guide.sections.some(x=>x.id===section)) return false;
+  if (section!=='core' && p.openSections?.includes(section)) return true;
+  if (section!=='core') p.openSections=[...(p.openSections||[]),section];
+  s.previewLearnEvents.push({
+    previewId:p.id, taskId:task.id, wordId:relevantWord(task),
+    materialId:guide.materialId, section, answerBearing:true,
+    afterFeedback:p.learnFromFeedback, at:new Date(now).toISOString(),
+    source:'r2-review-learn-exposure'
+  });
+  return true;
+}
+export function previewOpenLearn(s, now=new Date()) {
+  const task=currentPreview(s), p=s.previewSession;
+  if (!task?.learnKey || !vocabularyGuides[task.learnKey] || !p) return false;
+  if (p.phase!=='ask' && p.phase!=='feedback') return false;
+  const fromFeedback=p.phase==='feedback';
+  p.learnReturn=fromFeedback && p.index+1<p.queue.length?'next':'current';
+  p.learnFromFeedback=fromFeedback;
+  p.openSections=[];
+  p.phase='learn';
+  return previewLearnExposure(s,'core',now);
+}
+export function previewLearnPractice(s) {
+  const p=s.previewSession;
+  if (!p || p.phase!=='learn' || !currentPreview(s)) return false;
+  if (p.learnReturn==='next') {
+    p.phase='feedback'; // previewNext owns the transition and clears transient fields
+    previewNext(s);
+  } else {
+    p.phase='ask'; p.hintUsed=false; p.draft='';
+    p.audioPlayed=false; p.audioPlays=0; p.audioError=''; p.textRevealed=false; p.outcome=null;
+  }
+  p.learnReturn=null; p.learnFromFeedback=false; p.openSections=[];
+  return true;
+}
 export function currentPreview(s) {
   const preview = s.previewSession;
   return preview && !preview.finished ? exampleById[preview.queue[preview.index]] || null : null;
@@ -14,12 +64,15 @@ export function beginPreview(s, scenarioId) {
   s.previewSequence = (s.previewSequence || 0) + 1;
   s.previewSession = {
     id:'r2-'+s.previewSequence, scenarioId,
-    queue:scenario.taskIds.slice(), index:0, phase:'ask',
+    queue:scenario.taskIds.slice(), index:0, phase:scenario.startInLearn?'learn':'ask',
     hintUsed:false, textRevealed:false, audioPlayed:false,
     audioPlays:0, audioError:'', draft:'', outcome:null,
+    learnReturn:null, learnFromFeedback:false, openSections:[],
     finished:false, paused:false
   };
   s.previewEvents = Array.isArray(s.previewEvents) ? s.previewEvents : [];
+  s.previewLearnEvents = Array.isArray(s.previewLearnEvents) ? s.previewLearnEvents : [];
+  if (scenario.startInLearn) previewLearnExposure(s,'core');
   s.screen='variant';
   return true;
 }
@@ -66,16 +119,23 @@ export function previewSubmit(s, response, now=new Date()) {
       task.format!=='audio') return false;
   if (response!==null && task.format==='audio' && !task.choices.includes(response)) return false;
   const raw=response===null ? '我不知道' : String(response).trim().slice(0,100);
-  const answered=response!==null && normalized(raw).length>0;
+  const normalize=normalizedFor(task);
+  const answered=response!==null && normalize(raw).length>0;
   const expected=task.format==='text' ? (task.accepted||[task.expected]) : [task.expected];
-  const correct=answered && expected.some(x=>normalized(x)===normalized(raw));
-  const exposed=p.textRevealed || !!task.supportedByDesign;
+  const correct=answered && expected.some(x=>normalize(x)===normalize(raw));
+  const at=new Date(now).toISOString();
+  const priorAttempts=(s.previewEvents||[]).filter(x=>x.wordId===relevantWord(task) && x.previewId===p.id);
+  const sameMaterialRecent=(s.previewEvents||[]).filter(x=>x.materialId===task.materialId && recent(x.at,at));
+  const learnExposures=(s.previewLearnEvents||[]).filter(x=>x.wordId===relevantWord(task) && recent(x.at,at));
+  const exposed=p.textRevealed || !!task.supportedByDesign || learnExposures.length>0 ||
+    priorAttempts.some(x=>x.shownAnswerAfter) || sameMaterialRecent.length>0;
   const supported=p.hintUsed || exposed;
   let result='incorrect';
   if (!answered) result='unknown';
   else if (task.format==='audio' && !p.audioPlayed && p.textRevealed) {
     result=correct ? 'supported-correct' : 'unverified';
-  } else if (correct && task.supportedByDesign) result='practice-correct';
+  } else if (correct && (task.supportedByDesign || learnExposures.length ||
+      priorAttempts.some(x=>x.shownAnswerAfter) || sameMaterialRecent.length)) result='practice-correct';
   else if (correct) result=supported?'supported-correct':'independent-correct';
   else if (task.format==='text' && task.performance==='active-recall') result='unverified';
   const event={
@@ -86,9 +146,13 @@ export function previewSubmit(s, response, now=new Date()) {
     observedPerformance:task.format==='audio' && !p.audioPlayed ?
       (p.textRevealed ? 'written-recognition-with-visible-text' : 'no-auditory-stimulus') : task.performance,
     response:raw, expected:task.expected, result, hintUsed:p.hintUsed,
-    textRevealed:p.textRevealed, wasShownPriorAnswer:!!task.supportedByDesign,
+    textRevealed:p.textRevealed, wasShownPriorAnswer:exposed,
+    learnedBeforeAttempt:learnExposures.length>0,
+    learnSectionsSeen:[...new Set(learnExposures.map(x=>x.section))],
+    priorAttempts:priorAttempts.length, sameMaterialRecent:sameMaterialRecent.length>0,
+    reviewType:'practice-not-delayed-review', isDelayedReview:false,
     audioPlayed:p.audioPlayed, audioPlays:p.audioPlays,
-    shownAnswerAfter:true, at:new Date(now).toISOString(),
+    shownAnswerAfter:true, at,
     source:'r2-review-only', evaluatedBy:'bounded-fixture-rule'
   };
   if (!Array.isArray(s.previewEvents)) s.previewEvents=[];
@@ -117,8 +181,8 @@ export function previewFeedback(result,task) {
     task.format==='audio'?'在本次听音条件下选对了':'这次独立完成了',
     task.format==='audio'?'已记录实际播放次数和未显示词形的条件。单次听辨不代表听说能力已稳定。':
       '只说明本次要求与材料条件下的表现，不自动推断保持、迁移或其他能力。','success'];
-  if (result==='practice-correct') return ['支持性练习完成',
-    '这道题是在看过答案之后进行的辨认，不是新的独立提取证据。','info'];
+  if (result==='practice-correct') return ['这次巩固练习做对了',
+    '之前已经看过相关学习内容或答案；这是即时练习，不等于首次独立掌握，也不表示跨时间保持。','info'];
   if (result==='supported-correct') return ['获得支持后完成了',
     '提示或已展示的文本帮助了作答；这次结果不会冒充无提示、纯听觉或长期保持表现。','info'];
   if (result==='unverified') return ['记录了尝试，暂不判为独立正确或错误',

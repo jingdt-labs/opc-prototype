@@ -97,3 +97,52 @@ test('spelling never intercepts A–D while typing; rich material reveals on fee
   assert.equal(state.screen,'lab');
   assert.equal(state.previewSession.phase,'feedback');
 });
+
+test('L1 short: Learn → Practice → Feedback → Learn is usable without independent-credit leakage',()=>{
+  click('studio-start',{scenario:'learn-short'});
+  assert.equal(state.previewSession.phase,'learn');
+  assert.ok(root.innerHTML.includes('learn-hero'));
+  assert.ok(root.innerHTML.includes('shorter / shortest'));
+  assert.equal(state.previewEvents.filter(e=>e.scenarioId==='learn-short').length,0);
+  click('studio-learn-play');
+  assert.equal(played.at(-1),'short');
+  assert.ok(state.previewLearnEvents.some(e=>e.wordId==='short'&&e.section==='audio'));
+  click('studio-learn-practice');
+  assert.ok(!root.innerHTML.includes('class="learn-meaning"'));
+  click('studio-answer',{answer:'短的'});
+  assert.equal(state.previewEvents.at(-1).result,'practice-correct');
+  click('studio-learn');
+  assert.equal(state.previewSession.phase,'learn');
+  click('studio-learn-practice');
+  assert.equal(state.previewSession.phase,'ask');
+  click('studio-pause');
+  assert.equal(state.screen,'lab');
+});
+
+test('L2 sometimes: independent failure → targeted contrast → changed-sentence practice',()=>{
+  click('studio-start',{scenario:'learn-sometimes'});
+  assert.equal(state.previewSession.phase,'ask');
+  click('studio-answer',{answer:'sometime'});
+  assert.equal(state.previewEvents.at(-1).result,'incorrect');
+  const original=state.previewEvents.at(-1);
+  click('studio-learn');
+  assert.ok(root.innerHTML.includes('四个易混表达'));
+  click('studio-learn-practice');
+  assert.ok(root.innerHTML.includes('We ___ play basketball after school.'));
+  click('studio-answer',{answer:'sometimes'});
+  assert.equal(state.previewEvents.at(-1).result,'practice-correct');
+  assert.equal(state.previewEvents.at(-1).learnedBeforeAttempt,true);
+  assert.equal(state.previewEvents.find(e=>e.id===original.id).result,'incorrect');
+  click('studio-next');
+});
+
+test('audio feedback offers real replay and never a dead text-support conversion',()=>{
+  click('studio-start',{scenario:'listen'});
+  click('studio-play');
+  click('studio-answer',{answer:'因为'});
+  const previous=JSON.stringify(state.previewEvents.at(-1));
+  assert.ok(root.innerHTML.includes('复听英文'));
+  assert.ok(!root.innerHTML.includes('data-action="studio-transcript"'));
+  click('studio-play');
+  assert.equal(JSON.stringify(state.previewEvents.at(-1)),previous);
+});

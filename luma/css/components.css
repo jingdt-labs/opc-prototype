@@ -437,3 +437,122 @@ html[data-theme="dark"] .login-page {
   .focus-preview.preview-choice .focus-main,
   .focus-preview.preview-rich .focus-main {max-height:none;}
 }
+
+
+/* R2 Supplement — one Focus shell, deliberate scrolling by learning phase.
+   Practice and feedback scroll the outer Focus body only if content truly requires it;
+   Learn uses that same body as a comfortable reader. No nested card scrollbar. */
+.focus-preview {height:100dvh;min-height:0;overflow:hidden;}
+.focus-preview .focus-body {
+  display:flex;align-items:center;justify-content:center;
+  min-height:0;overflow-x:hidden;overflow-y:auto;overscroll-behavior-y:contain;
+  padding:18px 24px 20px;
+}
+.focus-preview .focus-main,
+.focus-preview.preview-text .focus-main,
+.focus-preview.preview-audio .focus-main,
+.focus-preview.preview-choice .focus-main,
+.focus-preview.preview-rich .focus-main {
+  display:flex;flex-direction:column;height:auto;max-height:none;min-height:0;
+  width:min(100%,890px);margin:auto;
+}
+.focus-preview .focus-card {flex:none;min-height:0;overflow:visible;}
+.focus-preview .focus-card-inside {
+  flex:none;min-height:0;overflow:visible;scrollbar-gutter:auto;
+  padding:25px clamp(24px,5vw,58px) 20px;
+}
+.focus-preview .focus-card-bottom {
+  position:sticky;bottom:0;z-index:2;flex-wrap:wrap;
+  background:var(--surface-subtle);border-radius:0 0 27px 27px;
+  box-shadow:0 -4px 14px rgba(30,40,65,.035);
+}
+.focus-preview .focus-card-bottom small {flex:1 1 150px;}
+.focus-preview .focus-caption {line-height:1.5;margin-bottom:0;}
+.focus-preview .feedback-panel .explain p+p {margin-top:8px;}
+.focus-preview .studio-audio-stimulus {gap:9px;margin:11px auto 12px;}
+.studio-feedback-word {
+  font:500 clamp(32px,3.5vw,48px)/1.2 Georgia,'Times New Roman',serif;
+  color:var(--ink-strong);
+}
+.focus-preview.is-learn .focus-body {display:block;padding:24px 24px 30px;}
+.focus-preview.is-learn .focus-main {width:min(100%,920px);margin:0 auto;}
+.focus-preview.is-learn .focus-card-inside {padding:27px clamp(24px,4vw,46px) 24px;}
+.learn-hero {
+  margin-top:18px;padding:24px clamp(20px,3vw,32px);border-radius:20px;
+  border:1px solid var(--line);background:var(--surface-subtle);
+}
+.learn-hero-heading {display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+.learn-eyebrow {font-size:10px;font-weight:780;letter-spacing:.12em;color:var(--accent-ink);}
+.learn-hero-heading .chip {font-size:11px;max-width:100%;line-height:1.5;}
+.learn-word-row {display:flex;align-items:center;gap:22px;flex-wrap:wrap;margin:16px 0 4px;}
+.learn-word {
+  margin:0;font-family:Georgia,'Times New Roman',serif;font-weight:500;
+  font-size:clamp(48px,5.4vw,67px);line-height:1.12;letter-spacing:-.045em;
+}
+.learn-phonetic {font-size:13px;color:var(--muted);}
+.learn-phonetic span {margin-left:8px;}
+.learn-audio-status {font-size:11px;color:var(--muted);min-height:16px;}
+.learn-meaning {
+  display:flex;flex-direction:column;gap:5px;margin-top:23px;padding-left:16px;
+  border-left:3px solid var(--accent);
+}
+.learn-meaning small {font-size:11px;color:var(--muted);}
+.learn-meaning strong {font-size:23px;letter-spacing:-.01em;color:var(--ink-strong);}
+.learn-example {margin-top:22px;padding:18px 20px;border-radius:15px;background:var(--surface);
+  border:1px solid var(--line);}
+.learn-example span {display:block;font-size:11px;font-weight:700;color:var(--muted);}
+.learn-example p {font:500 clamp(19px,2.2vw,25px)/1.55 Georgia,'Times New Roman',serif;
+  color:var(--ink-strong);margin:8px 0 7px;}
+.learn-example strong {font-size:13px;color:var(--muted);font-weight:600;}
+.learn-more-head {display:flex;align-items:end;justify-content:space-between;gap:18px;margin:27px 2px 12px;}
+.learn-more-head h2 {font-size:19px;margin:0 0 4px;}
+.learn-more-head p {font-size:12px;line-height:1.65;color:var(--muted);margin:0;}
+.learn-more-head>span {font-size:11px;white-space:nowrap;color:var(--faint);}
+.learn-section-stack {display:grid;gap:10px;}
+.learn-section {border:1px solid var(--line);border-radius:14px;background:var(--surface);}
+.learn-section[open] {border-color:var(--accent);}
+.learn-section summary {
+  padding:15px 18px;display:flex;align-items:center;justify-content:space-between;
+  gap:18px;list-style:none;cursor:pointer;
+}
+.learn-section summary::-webkit-details-marker {display:none;}
+.learn-section summary:focus-visible {outline:3px solid var(--accent);outline-offset:3px;border-radius:12px;}
+.learn-summary-text {display:grid;gap:5px;}
+.learn-summary-text strong {color:var(--ink-strong);font-size:13px;}
+.learn-summary-text small {font-size:11px;color:var(--muted);line-height:1.5;}
+.learn-chevron {flex:none;font-size:23px;font-weight:400;color:var(--accent-ink);transition:transform .15s;}
+.learn-section[open] .learn-chevron {transform:rotate(45deg);}
+.learn-facts {padding:0 18px 16px;margin:0;}
+.learn-fact {display:grid;grid-template-columns:minmax(110px,.31fr) 1fr;gap:15px;
+  padding:12px 0;border-top:1px solid var(--line);line-height:1.65;}
+.learn-fact dt {font-size:12px;font-weight:740;color:var(--ink-strong);}
+.learn-fact dd {margin:0;font-size:12px;color:var(--muted);}
+.learn-evidence-note {display:flex;align-items:flex-start;gap:10px;margin:22px 0 0;
+  font-size:12px;line-height:1.75;color:var(--muted);}
+.learn-evidence-note svg {flex:none;margin-top:2px;color:var(--accent-ink);}
+.learn-evidence-note strong {color:var(--ink);}
+@media (max-height:790px) and (min-width:551px) {
+  .focus-preview .focus-body {padding-top:10px;padding-bottom:9px;}
+  .focus-preview .focus-card-inside {padding-top:17px;padding-bottom:15px;}
+  .focus-preview .focus-card-bottom {padding-top:10px;padding-bottom:10px;min-height:62px;}
+  .focus-preview .studio-context-stimulus {margin:10px 0;padding:14px 19px;}
+  .focus-preview .studio-context-stimulus h1 {margin:7px 0;font-size:clamp(24px,2.5vw,30px);}
+  .focus-preview .studio-instruction {margin-bottom:8px;}
+  .focus-preview .studio-goal-indicator {margin-top:8px;padding:8px 12px;}
+  .focus-preview .choice {min-height:58px;padding:10px 15px;}
+  .focus-preview .feedback-panel {padding:12px 17px;margin-top:10px;}
+}
+@media (max-width:550px) {
+  .focus-preview {height:auto;min-height:100dvh;overflow:visible;}
+  .focus-preview .focus-body,.focus-preview.is-learn .focus-body {
+    display:block;overflow:visible;padding:16px 12px 22px;
+  }
+  .focus-preview .focus-card-bottom {position:static;flex-direction:column;align-items:stretch;}
+  .focus-preview .focus-card-bottom small {display:none;}
+  .focus-preview .focus-assist {justify-content:center;}
+  .focus-preview .focus-card-inside,.focus-preview.is-learn .focus-card-inside {padding:19px;}
+  .learn-hero {padding:18px;}
+  .learn-word-row {gap:14px;}
+  .learn-more-head {align-items:start;flex-direction:column;gap:5px;}
+  .learn-fact {grid-template-columns:1fr;gap:4px;}
+}

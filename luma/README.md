@@ -1,4 +1,4 @@
-# Luma · R1 Core Journey + R2 Interaction Variants
+# Luma · R1 Core Journey + R2 Learn / Practice Supplement
 
 **Entry:** [GitHub Pages /luma/](https://jingdt-labs.github.io/opc-prototype/luma/) · Plain static HTML, CSS, and ES modules.
 
@@ -19,7 +19,13 @@ This is a **high-fidelity interactive prototype**, not the production Learning R
 
 Entry: **student Workspace** → scroll to the low-priority **设计评审专用** strip → **探索 R2 动态交互样本**. The gallery is **not** part of the student’s daily study navigation. Its goals, session and attempts are review-only, persisted in separate `previewSession` / `previewEvents` fields; they do not modify the confirmed Goal, R1 Session, Evidence or review eligibility.
 
-All five scenarios share the R1 Focus frame, answer / hint / don't know / feedback / continue / pause convention:
+Two new Learn / Practice paths precede the original five practice scenarios. Learn is an independent teaching and exploration activity, not another quiz.
+
+**L1 · short — 陌生词先学再练：** in **不认识？先看懂 short**, read its core meaning, IPA, part of speech, natural example and optional pronunciation. Explore shorter/shortest, other meanings and collocations as needed; choose **现在去练一练**. A correct attempt after viewing the answer-bearing Learn content remains **immediate practice**, not evidence of first independent mastery. Feedback can reopen Learn.
+
+**L2 · sometimes — 先试再针对性学习：** in **似乎认识？试试 sometimes**, answer *I ___ walk to school.* first. Try an incorrect `sometime` or `some times`; feedback retains the original attempt. Choose **查看完整讲解**, expand the four-way contrast, then **换一句话，再练一练** in a new sentence. The second answer is **immediate supported practice**, not delayed retention. If the first answer was correct, that independent-attempt evidence remains intact even after optional Learn.
+
+All five original scenarios share the R1 Focus frame, answer / hint / don't know / feedback / continue / pause convention:
 
 1. **A · 主动提取**: see *because*, type `因为` or `由于` without options and press Enter. Try a different unknown expression: the limited fixture evaluator refuses to claim a certain error and dynamically appends a **supported recognition** task. Finishing that choice is recorded as practice, not successful recall.
 2. **B · 听觉辨认**: the English word and Chinese answer are hidden. Click **播放英文**; only after the browser speech engine reports that the utterance ended does the answer choice grid appear. Retry playback if desired. If speech is unavailable, choose **查看英文并转为支持学习**: the written choice is explicitly **not** auditory evidence. Asking "我不知道" without hearing also creates **no auditory performance**.
@@ -31,7 +37,15 @@ The gallery juxtaposes **confirmed student Goal** and **temporary demonstration 
 
 **Interaction safeguards:** A–D / optional 1–4 only for choices; Enter submits active text fields and advances from feedback; Esc pauses. Correct, hinted, uncertain open response, unknown, erroneous spelling, immediate rehearsal and audio fallback remain distinct. Real browser `speechSynthesis` is an optional demonstration dependency: voice/locale/quality may vary, some browsers may not offer speech, and an `onend` event does not verify what the listener actually perceived. Never interpret a click on play as proof of hearing or pronunciation.
 
-**Human viewport check required:** at 1440×900 and a shorter laptop height, inspect Focus question → feedback → next on text, audio, context, and expanded rich material. Only the inner learning panel should scroll for long content; do not infer browser layout performance from Node tests alone.
+**Human viewport check required:** at 1440×900 and 1366×768, inspect Learn reading and expansion, Learn → Practice, Practice → Feedback, Feedback → Learn and next. R2 uses a **single Focus-body scroll** for long teaching content, not an inner card scrollbar; R1 stays unchanged. Do not infer browser layout quality from synthetic tests alone.
+
+## R2 Supplement · Design and bounded repair
+
+- Learn displays focused core knowledge directly; richer materials are available via disclosures. Reading, opening material and completed pronunciation playback record **learning contact**, never an independent correct response.
+- Evidence keeps original attempts, answer-bearing Learn exposure and recent same-material repeats. Immediate correct answers after exposure are not promoted into new independent or delayed retention evidence. No actual retention schedule or review test is implemented for these new gallery scenarios.
+- R2 Practice and Feedback use the Focus body as their only deliberate overflow region, while Learn allows a longer reader layout and accessible actions. The original R1 route is preserved.
+- English form production and English choices retain internal spaces and punctuation when evaluating correctness; outer whitespace/case may be tolerated. Chinese meaning recall retains light normalization.
+- Audio feedback offers useful replay and visible reference text, without its former inactive text-to-support button or evidence mutation.
 
 ## R1 Repair — F1–F4
 
@@ -57,13 +71,13 @@ The gallery juxtaposes **confirmed student Goal** and **temporary demonstration 
 - `index.html` — entry and module wiring
 - `css/base.css`, `css/components.css` — theme tokens and high-fidelity visual/interaction styles
 - `data/sample-data.js` — R1 words, Goal options, history
-- `data/experience-data.js` — authored R2 scenario/Task/Material examples (no real exam claims)
+- `data/experience-data.js`, `data/vocabulary-data.js` — seven authored R2 scenarios and Learn materials (not official exam material)
 - `js/state.js` — versioned persistence and evidence assembly
 - `js/learning.js` — unchanged R1 decision and due-review model
-- `js/variant-flow.js` — bounded review-only task steps, evidence conditions and speech gate
+- `js/variant-flow.js` — bounded review-only Learn and Practice transitions, exposure-aware evidence and speech gate
 - `js/app.js` — routes, semantic HTML views, user interactions
-- `tests/learning.test.mjs`, `tests/variant-flow.test.mjs`, `tests/interaction.test.mjs` — R1 behavior, R2 evidence, interaction smoke checks. Run `npm test` in `luma/` (Node built-ins, no dependencies).
+- `tests/learning.test.mjs`, `tests/variant-flow.test.mjs`, `tests/interaction.test.mjs`, `tests/learn-flow.test.mjs` — R1 behavior, R2 Learn evidence, and interaction checks. Run `npm test` in `luma/` (Node built-ins, no dependencies).
 
 All imports and stylesheets are relative and can be served under `/opc-prototype/luma/` with no build step. For local preview use `python3 -m http.server` at the repository root and open `/luma/`.
 
-**Delivery boundary:** The browser may play real synthesized English and evaluate bounded choices/spelling, but the Goal selection, teaching adaptations and feedback are authored demonstration rules. No real AI, production assessment, comprehensive vocabulary bank, verified listening/pronunciation assessment, backend identity or sync, or calibrated review scheduling. **R2 does not expand the first engineering slice.** Await Human Final Review before selecting implementation scope.
+**Delivery boundary:** The browser may play real synthesized English and evaluate bounded choices/spelling, but the Goal selection, teaching adaptations and feedback are authored demonstration rules. No real AI, production assessment, comprehensive vocabulary bank, verified listening/pronunciation assessment, backend identity or sync, or calibrated review scheduling. **R2 Supplement does not expand the first engineering slice.** Await Human Final Review before selecting implementation scope.
