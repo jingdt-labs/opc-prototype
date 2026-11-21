@@ -1,10 +1,10 @@
-# Luma · R1 Complete Core Journey
+# Luma · R1 Core Journey + R2 Interaction Variants
 
 **Entry:** [GitHub Pages /luma/](https://jingdt-labs.github.io/opc-prototype/luma/) · Plain static HTML, CSS, and ES modules.
 
 This is a **high-fidelity interactive prototype**, not the production Learning Runtime. The product authority lives in `jingdt-labs/luma` (four Frozen documents); the delivery plan is [Issue #134](https://github.com/jingdt-labs/luma/issues/134).
 
-## Human walkthrough
+## R1 student journey · Human walkthrough
 
 1. Open the entry and choose **开始体验** (simulated, no credentials).
 2. Pick one of three learning intentions. Preview and confirm the structured Goal (closed ~500-word scope, written meaning recognition, future delayed review).
@@ -14,6 +14,24 @@ This is a **high-fidelity interactive prototype**, not the production Learning R
 6. Test **浅色 / 深色 / 跟随系统**, refresh during a question or feedback, and use **重置演示数据** to replay.
 
 **Keyboard:** A/B/C/D (case-insensitive) selects the matching lettered option; 1–4 remains as an optional fallback. Enter advances after feedback; Esc pauses. Keyboard answers are disabled while typing in editable inputs or using selectors.
+
+## R2 gallery · Human Final Review walkthrough
+
+Entry: **student Workspace** → scroll to the low-priority **设计评审专用** strip → **探索 R2 动态交互样本**. The gallery is **not** part of the student’s daily study navigation. Its goals, session and attempts are review-only, persisted in separate `previewSession` / `previewEvents` fields; they do not modify the confirmed Goal, R1 Session, Evidence or review eligibility.
+
+All five scenarios share the R1 Focus frame, answer / hint / don't know / feedback / continue / pause convention:
+
+1. **A · 主动提取**: see *because*, type `因为` or `由于` without options and press Enter. Try a different unknown expression: the limited fixture evaluator refuses to claim a certain error and dynamically appends a **supported recognition** task. Finishing that choice is recorded as practice, not successful recall.
+2. **B · 听觉辨认**: the English word and Chinese answer are hidden. Click **播放英文**; only after the browser speech engine reports that the utterance ended does the answer choice grid appear. Retry playback if desired. If speech is unavailable, choose **查看英文并转为支持学习**: the written choice is explicitly **not** auditory evidence. Asking "我不知道" without hearing also creates **no auditory performance**.
+3. **C · 词形产出**: see the defined meaning **借入** and type `borrow`; press Enter to submit. Compare `lend`, typo, and hint-assisted cases. A–D keyboard shortcuts never intercept the text field.
+4. **D · 语境理解**: read *Although it was raining, we went out.* and select the meaning. The extra non-target word gloss appears **only after requesting help**, and the response is then marked supported.
+5. **E · 丰富材料**: read *I stayed home because I felt ill.* and identify the reason. Initial screen is limited to context + choices; after submitting, review the exact response, expand **补充材料** on demand, and optionally listen to the example. Post-answer audio is practice support, not independent listening Evidence.
+
+The gallery juxtaposes **confirmed student Goal** and **temporary demonstration Goal**. Compare `because` in R1 recognition, R2 unprompted recall, R2 sound-only recognition, and R2 cause-in-context: the Language Resource overlaps, but each task asks for distinct performance and uses different materials. All R2 authored examples are **simulated, not attributed to an official exam**.
+
+**Interaction safeguards:** A–D / optional 1–4 only for choices; Enter submits active text fields and advances from feedback; Esc pauses. Correct, hinted, uncertain open response, unknown, erroneous spelling, immediate rehearsal and audio fallback remain distinct. Real browser `speechSynthesis` is an optional demonstration dependency: voice/locale/quality may vary, some browsers may not offer speech, and an `onend` event does not verify what the listener actually perceived. Never interpret a click on play as proof of hearing or pronunciation.
+
+**Human viewport check required:** at 1440×900 and a shorter laptop height, inspect Focus question → feedback → next on text, audio, context, and expanded rich material. Only the inner learning panel should scroll for long content; do not infer browser layout performance from Node tests alone.
 
 ## R1 Repair — F1–F4
 
@@ -38,12 +56,14 @@ This is a **high-fidelity interactive prototype**, not the production Learning R
 
 - `index.html` — entry and module wiring
 - `css/base.css`, `css/components.css` — theme tokens and high-fidelity visual/interaction styles
-- `data/sample-data.js` — authored words, Goal options, separated sample history
+- `data/sample-data.js` — R1 words, Goal options, history
+- `data/experience-data.js` — authored R2 scenario/Task/Material examples (no real exam claims)
 - `js/state.js` — versioned persistence and evidence assembly
-- `js/learning.js` — deterministic task/attempt/evidence decisions
+- `js/learning.js` — unchanged R1 decision and due-review model
+- `js/variant-flow.js` — bounded review-only task steps, evidence conditions and speech gate
 - `js/app.js` — routes, semantic HTML views, user interactions
-- `tests/learning.test.mjs` — domain-behavior regression tests; run `npm test` in `luma/` (no dependencies)
+- `tests/learning.test.mjs`, `tests/variant-flow.test.mjs`, `tests/interaction.test.mjs` — R1 behavior, R2 evidence, interaction smoke checks. Run `npm test` in `luma/` (Node built-ins, no dependencies).
 
 All imports and stylesheets are relative and can be served under `/opc-prototype/luma/` with no build step. For local preview use `python3 -m http.server` at the repository root and open `/luma/`.
 
-**R2 boundary:** No real AI, complete vocabulary bank, audio, oral/spelling/sentence tasks, credentials, cross-device sync, pedagogical performance claims, or production-grade review scheduling. Extend interaction patterns only after Human reviews R1.
+**Delivery boundary:** The browser may play real synthesized English and evaluate bounded choices/spelling, but the Goal selection, teaching adaptations and feedback are authored demonstration rules. No real AI, production assessment, comprehensive vocabulary bank, verified listening/pronunciation assessment, backend identity or sync, or calibrated review scheduling. **R2 does not expand the first engineering slice.** Await Human Final Review before selecting implementation scope.

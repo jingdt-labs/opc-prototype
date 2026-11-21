@@ -5,7 +5,8 @@ const VERSION = 1;
 const initial = () => ({
   version: VERSION, entered: false, theme: 'system', screen: 'login',
   goal: null, draftIntent: 'homework', session: null, events: [],
-  fixtureEpoch: Date.now(), sequence: 0, dismissedIntro: false
+  fixtureEpoch: Date.now(), sequence: 0, dismissedIntro: false,
+  previewSession: null, previewEvents: [], previewSequence: 0
 });
 
 function safeLoad() {

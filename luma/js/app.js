@@ -1,5 +1,9 @@
 import { intents, sampleWords, wordById, goalScope, goalPerformance, goalEvidence } from '../data/sample-data.js';
 import { state, change, resetDemo, allEvidence, timeLabel } from './state.js';
+import { studioScenarios, scenarioById, exampleById } from '../data/experience-data.js';
+import { currentPreview, beginPreview, pausePreview, resumePreview, previewHint,
+  previewAudioCompleted, previewAudioError, previewRevealText, previewDraft,
+  previewSubmit, previewOutcome, previewNext, previewFeedback } from './variant-flow.js';
 import { wordStatus, reviewDueIds, reviewWaitingIds, summary, nextBatch, startLesson, currentTask, hint, recordAnswer, nextTask, pauseLesson, abandonLesson, latestOutcome, resultDisplay } from './learning.js';
 
 const root = document.getElementById('app');
@@ -14,7 +18,8 @@ const symbolPaths = {
   book: '<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v17H6.5A2.5 2.5 0 0 1 4 17.5Z"/><path d="M4 17.5A2.5 2.5 0 0 1 6.5 15H20"/>',
   check: '<path d="m5 12 4 4L19 6"/>',
   replay: '<path d="M3 11a9 9 0 1 1 3 7"/><path d="M3 4v7h7"/>',
-  info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5m0-8h.01"/>'
+  info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5m0-8h.01"/>',
+  play: '<path d="m8 5 11 7-11 7Z"/>'
 };
 const icon = (name) => '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (symbolPaths[name] || '') + '</svg>';
 const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
@@ -23,7 +28,7 @@ const theme = () => '<label class="theme-wrap"><span class="screen-reader-only">
 const button = (label, action, cls = 'btn-outline', extra = '') =>
   '<button type="button" class="btn ' + cls + '" data-action="' + action + '" ' + extra + '>' + label + '</button>';
 const go = (screen, label, cls='btn-ghost') => button(label, 'route', cls, 'data-screen="' + screen + '"');
-const mockTag = '<span class="demo-pill">R1 模拟体验</span>';
+const mockTag = '<span class="demo-pill">Luma 原型体验</span>';
 const footerNote = '<p class="mini text-muted">本原型只使用 8 个代表词汇；约 500 词是 Goal 的设定范围，并非已导入或学过的数量。</p>';
 
 function loginPage() {
@@ -36,12 +41,12 @@ function loginPage() {
         <p>不必一次学会很多。先找到合适的起点，把不认识的词，一个个变成你理解的词。</p>
         <div class="login-panel">
           <strong>进入你的学习空间</strong>
-          <p>R1 使用本机演示身份，无须账号、密码或个人信息。</p>
+          <p>本原型使用本机演示身份，无须账号、密码或个人信息。</p>
           ${button('开始体验 ' + icon('arrow'), 'enter', 'btn-primary btn-wide')}
         </div>
         <div class="login-caption">一个安静、持续、属于你的英语学习空间。 ${theme()}</div>
       </div>
-      <footer class="login-footer">Luma · Interactive Prototype R1 · 本地模拟，无真实登录</footer>
+      <footer class="login-footer">Luma · Interactive Prototype R2 · 本地模拟，无真实登录</footer>
     </section>
     <aside class="login-right" aria-label="Luma 学习理念">
       <div class="eyebrow">A little, every day.</div>
@@ -138,6 +143,8 @@ function workspace() {
       ${go('progress','查看为什么复习 '+icon('arrow'),'btn-soft btn-sm')}
     </div>
     <div style="margin-top:25px">${footerNote}</div>
+    <div class="review-entry"><span>设计评审专用 · 不影响当前学习记录</span>
+      ${go('lab','探索 R2 动态交互样本 '+icon('arrow'),'btn-ghost btn-sm')}</div>
   </main>`,'学习首页');
 }
 function goalPage() {
@@ -215,6 +222,25 @@ function progressPage() {
     <div class="inline-tip" style="margin-top:24px">${icon('info')}<span><strong>证据边界：</strong>历史示例是预置模拟；本机记录只是原型交互。跨时间保持只能通过真实间隔后的独立表现观察，不能由这次练习自动生成。</span></div>
   </main>`,'学习进步');
 }
+function focusLayout({ progress, progressPercent, inside, controls, caption, phaseClass='' , isPreview=false, variantKind='' }) {
+  return `<main class="focus-page ${isPreview?'focus-preview '+variantKind:''}">
+    <header class="focus-topbar">
+      <div class="focus-brand"><span class="brand-mark">✦</span><span>专注学习</span>${isPreview?'<span class="review-indicator">R2 评审演示</span>':''}</div>
+      <div class="focus-progress"><span>${progress}</span>
+        <div class="progress-line" aria-label="当前任务进度"><i style="width:${progressPercent}%"></i></div></div>
+      <div class="focus-actions">${theme()}${button(icon('pause')+' 暂停并返回',isPreview?'studio-pause':'pause','btn-ghost btn-sm')}</div>
+    </header>
+    <div class="focus-body"><div class="focus-main">
+      <section class="focus-card" aria-label="当前词汇学习任务">
+        <div class="focus-card-inside ${phaseClass}">${inside}</div>
+        <div class="focus-card-bottom">${controls}</div>
+      </section>
+      <div class="focus-caption">${caption}</div>
+    </div></div>
+    <footer class="focus-bottom">Luma · ${isPreview?'R2 独立体验样本':'R1 学习演示'} ${icon('clock')} 可随时暂停并接续</footer>
+  </main>`;
+}
+
 function focusPage() {
   const lesson=state.session;
   const task=currentTask(state);
@@ -244,36 +270,158 @@ function focusPage() {
       ${outcome?.result==='incorrect'||outcome?.result==='unknown'||outcome?.result==='supported-correct'?
         '<p class="mini text-muted" style="margin-top:8px">先看懂解释，再根据复习时机继续观察；即刻重答不等于独立掌握。</p>':''}</div>
   </div>`:'';
-  return `<main class="focus-page">
-    <header class="focus-topbar">
-      <div class="focus-brand"><span class="brand-mark">✦</span> <span>专注学习</span></div>
-      <div class="focus-progress"><span>第 ${lesson.index+1} / ${lesson.queue.length} 次练习 · ${lesson.mode==='review'?'针对性复习':'基础词义辨认'}</span>
-        <div class="progress-line" aria-label="本次学习进度"><i style="width:${Math.round(100*lesson.index/lesson.queue.length)}%"></i></div></div>
-      <div class="focus-actions">${theme()}${button(icon('pause')+' 暂停并返回','pause','btn-ghost btn-sm')}</div>
+
+  const inside = `
+    <div class="focus-eyebrow"><span class="focus-kicker">${esc(label)}</span>
+      <span>${feedback?'看懂反馈后再继续':'先自己想一想'}</span></div>
+    <div class="word-area"><p>${feedback?'本次学习的词汇':'你觉得这个英文词是什么意思？'}</p>
+      <h1 class="focus-word">${esc(word.text)}</h1><div class="word-underline"></div></div>
+    ${hintPanel}
+    <div class="focus-stage">
+      ${feedback ? `<div class="focus-response" aria-label="本次回答"><span>你的回答</span><strong>${esc(outcome?.response)}</strong></div>`
+        : `<div class="choice-grid" role="group" aria-label="选择词义">${choices}</div>`}
+      ${feedbackPanel}
+    </div>`;
+  const controls = feedback
+    ? `<small>按 Enter 进入下一项，或停留读完解释</small>
+       ${button((lesson.index+1===lesson.queue.length?'完成本次学习':'继续学习')+' '+icon('arrow'),'next','btn-primary focus-next')}`
+    : `<div class="focus-assist">${lesson.hintUsed?'<span class="chip">已查看提示</span>':button(icon('light')+' 给我一点提示','hint','btn-outline btn-sm')}
+         ${button('我不知道','unknown','btn-ghost btn-sm')}</div>
+       <small>选择即提交 · 可按 A–D 作答</small>`;
+  return focusLayout({
+    progress:`第 ${lesson.index+1} / ${lesson.queue.length} 次练习 · ${lesson.mode==='review'?'针对性复习':'基础词义辨认'}`,
+    progressPercent:Math.round(100*lesson.index/lesson.queue.length),
+    inside, controls,
+    phaseClass:feedback?'is-feedback':'is-question',
+    caption:task.kind==='reinforce'?'这次紧接着讲解后的练习，不会当作跨时间保持证据。'
+      :'遇到不认识的词可以直接选择「我不知道」，这也是有效的学习起点。'
+  });
+}
+function studioPage() {
+  const p=state.previewSession;
+  const current=p && !p.finished ? currentPreview(state) : null;
+  const events=Array.isArray(state.previewEvents)?state.previewEvents:[];
+  return shell(`<main class="content">
+    <div class="studio-back">${go('workspace',icon('arrow')+' 返回日常学习','btn-ghost btn-sm')}</div>
+    <header class="page-heading"><div class="eyebrow">R2 · HUMAN REVIEW SPACE</div>
+      <h1>同一学习空间，不同的学习方式。</h1>
+      <p>以下是给产品评审者的<strong>独立演示样本</strong>，不会修改已经确认的 Goal，也不会影响学生日常学习证据与复习安排。</p>
     </header>
-    <div class="focus-body"><div class="focus-main">
-      <section class="focus-card" aria-label="当前词汇学习任务">
-        <div class="focus-card-inside ${feedback?"is-feedback":"is-question"}">
-          <div class="focus-eyebrow"><span class="focus-kicker">${esc(label)}</span><span>${feedback?'看懂反馈后再继续':'先自己想一想'}</span></div>
-          <div class="word-area"><p>${feedback?'本次学习的词汇':'你觉得这个英文词是什么意思？'}</p>
-            <h1 class="focus-word">${esc(word.text)}</h1><div class="word-underline"></div></div>
-          ${hintPanel}
-          <div class="focus-stage">
-            ${feedback ? `<div class="focus-response" aria-label="本次回答"><span>你的回答</span><strong>${esc(outcome?.response)}</strong></div>` : `<div class="choice-grid" role="group" aria-label="选择词义">${choices}</div>`}
-            ${feedbackPanel}
-          </div>
-        </div>
-        <div class="focus-card-bottom">
-          ${feedback?`<small>按 Enter 进入下一项，或停留读完解释</small>${button((lesson.index+1===lesson.queue.length?'完成本次学习':'继续学习')+' '+icon('arrow'),'next','btn-primary focus-next')}`:
-            `<div class="focus-assist">${lesson.hintUsed?'<span class="chip">已查看提示</span>':button(icon('light')+' 给我一点提示','hint','btn-outline btn-sm')}
-              ${button('我不知道','unknown','btn-ghost btn-sm')}</div><small>选择即提交 · 可按 A–D 作答</small>`}
-        </div>
-      </section>
-      <div class="focus-caption">${task.kind==='reinforce'?'这次紧接着讲解后的练习，不会当作跨时间保持证据。':
-        '遇到不认识的词可以直接选择「我不知道」，这也是有效的学习起点。'}</div>
-    </div></div>
-    <footer class="focus-bottom">Luma · R1 演示逻辑 ${icon('clock')} 可随时暂停并接续</footer>
-  </main>`;
+    <section class="studio-context" aria-label="两类目标的区别">
+      <div><span class="muted-label">学生当前真实 Goal（R1）</span><strong>${esc(goalPerformance)}</strong><small>${esc(goalScope)}</small></div>
+      <div class="studio-divider">${icon('arrow')}</div>
+      <div><span class="muted-label">R2 评审中的临时 Goal</span><strong>按下方演示切换</strong><small>仅改变本次 Task 与材料，原 Goal 始终保留</small></div>
+    </section>
+    ${current ? `<div class="studio-resume"><div><strong>上次的评审体验还在</strong><p>已保留本题阶段、提示与已播放信息。可继续，也可开始另一项样本。</p></div>${button('继续当前演示 '+icon('arrow'),'studio-resume','btn-primary btn-sm')}</div>` : ''}
+    <div class="section-head" style="margin-top:28px"><div><div class="eyebrow">Limited patterns · Five examples</div>
+      <h2>选择一个学习情境</h2></div><span class="chip">样本内容 · 非真实试题</span></div>
+    <section class="studio-grid" aria-label="R2 核心动态学习样本">
+      ${studioScenarios.map(sc=>`<article class="studio-card">
+        <div class="studio-card-head"><span class="studio-letter">${esc(sc.letter)}</span><span class="status-tag">${esc(sc.subtitle)}</span></div>
+        <h3>${esc(sc.title)}</h3><p>${esc(sc.what)}</p>
+        <div class="studio-card-goal"><span>临时 Goal · 希望做到</span><strong>${esc(sc.goal)}</strong></div>
+        ${button('体验这个任务 '+icon('arrow'),'studio-start','btn-outline btn-wide','data-scenario="'+esc(sc.id)+'"')}
+      </article>`).join('')}
+    </section>
+    ${p?.finished ? `<section class="card studio-review-summary" aria-label="刚才的体验结果">
+      <div class="eyebrow">Just completed</div><h3>这组演示已经完成。</h3>
+      <p>已展示的支持、词形／答案暴露和观察条件保存在独立的 R2 演示记录中，不影响 R1 学习进步。</p>
+    </section>` : ''}
+    <div class="studio-evidence"><div><span class="eyebrow">Review-only evidence</span><h3>最近的评审尝试</h3></div>
+      ${events.length ? events.slice(-4).reverse().map(e=>`<div class="studio-evidence-item">
+        <strong>${esc(scenarioById[e.scenarioId]?.subtitle||'学习尝试')} · ${esc(e.response)}</strong>
+        <small>${esc(e.result==='independent-correct'?'本次条件下独立正确':e.result==='supported-correct'?'受支持正确':e.result==='practice-correct'?'看过答案后的练习':e.result==='unknown'?'主动选择不知道':e.result==='unverified'?'不作确定评价':'本次未完成')} · ${e.hintUsed?'用过提示 · ':''}${e.audioPlayed?'实际完成语音播放 '+e.audioPlays+' 次 · ':''}${e.textRevealed?'显示过文本 · ':''}仅供评审</small>
+      </div>`).join('') : '<p class="mini text-muted">尚无 R2 演示记录。体验任意任务后会显示具体观察条件。</p>'}
+    </div>
+  </main>`,'R2 · 交互评审');
+}
+function variantFocus() {
+  const p=state.previewSession, task=currentPreview(state);
+  if (!p || !task) return studioPage();
+  const sc=scenarioById[p.scenarioId];
+  const feedback=p.phase==='feedback';
+  const event=feedback?previewOutcome(state):null;
+  const [resultTitle,resultText,resultTone]=previewFeedback(event?.result,task);
+  const choiceReady=task.format!=='audio'||p.audioPlayed||p.textRevealed;
+  const textStimulus=task.format==='audio'
+    ? `<div class="studio-audio-stimulus">
+        <span class="studio-sound-symbol" aria-hidden="true">${icon('play')}</span>
+        <h1>听一听，这个词。</h1><p>作答前不展示英文词形和中文释义。</p>
+        ${button(icon('play')+' '+(p.audioPlayed?'再听一次':'播放英文'),'studio-play','btn-primary')}
+        <span class="studio-audio-status" role="status">${p.audioPlayed?'已实际播放 '+p.audioPlays+' 次 · 可选择词义':p.audioError?esc(p.audioError):'使用浏览器本机语音合成 · 英语'}</span>
+        ${p.textRevealed?`<div class="studio-transcript"><span>已转为文字支持 · 不计为独立听辨</span><strong>${esc(task.audioText)}</strong></div>`:''}
+        ${!p.textRevealed?button('听不到？查看英文并转为支持学习','studio-transcript','btn-ghost btn-sm'):''}
+      </div>`
+    : task.sentence ? `<div class="studio-context-stimulus"><span class="eyebrow">In context</span>
+        <h1>${esc(task.sentence)}</h1><p>句子为原创模拟材料，不标注为真实考试题。</p></div>`
+    : `<div class="word-area studio-word-area"><p>${task.format==='text'&&task.performance==='written-form-production'?'请根据准确词义写出英文':'当前学习的表达'}</p>
+        <h1 class="focus-word ${task.wordId==='borrow'?'focus-word-cn':''}">${esc(task.stimulus)}</h1>
+        <div class="word-underline"></div></div>`;
+  const hintPanel=p.hintUsed && !feedback ? `<div class="hint-panel"><strong>提示已展开 · 本次记录为受支持尝试</strong>
+      ${esc(task.hint)}
+      ${task.translationSupport?`<div class="studio-gloss">${esc(task.translationSupport)}</div>`:''}</div>`:'';
+  const responseControls = feedback
+    ? `<div class="focus-response"><span>本次回答</span><strong>${esc(event?.response)}</strong></div>`
+    : task.format==='text'
+      ? `<div class="studio-input-group">
+          <label for="variant-answer">${task.performance==='written-form-production'?'输入英文单词':'用中文表达最常见的意思'}</label>
+          <input id="variant-answer" class="studio-answer-input" type="text" autocomplete="off" autocapitalize="off"
+            spellcheck="false" maxlength="100" placeholder="${task.performance==='written-form-production'?'输入英文…':'输入你想起的词义…'}"
+            value="${esc(p.draft)}"/>
+          <div class="studio-input-caption">按 Enter 提交；不要求固定的输入速度。</div></div>`
+      : choiceReady
+        ? `<div class="choice-grid studio-choice-grid" role="group" aria-label="选择回答">
+            ${task.choices.map((choice,i)=>`<button type="button" class="choice" data-action="studio-answer"
+              data-answer="${esc(choice)}"><span class="choice-num">${String.fromCharCode(65+i)}</span>
+                <span>${esc(choice)}</span></button>`).join('')}</div>`
+        : `<div class="studio-play-first"><strong>先播放，再选择词义。</strong><p>若浏览器无法提供声音，可使用文字支持；系统不会假装你听到了声音。</p></div>`;
+  const feedbackPanel=feedback?`<div class="feedback-panel ${resultTone}" role="status">
+    <h3>${resultTone==='success'?icon('check')+' ':''}${esc(resultTitle)}</h3>
+    <p>${esc(resultText)}</p>
+    <div class="explain"><p><strong>参考答案：${esc(task.expected)}</strong></p>
+      <p>${esc(task.explanation)}</p>
+      ${task.id==='spell-borrow' && event?.result==='incorrect'
+        ? `<p class="studio-form-correction">${event.response.trim().toLowerCase()==='lend'
+          ? '你写的是 lend（借出），这里需要 borrow（借入）。'
+          : '请核对 borrow 的字母顺序：b-o-r-r-o-w。拼写表现与认识词义是不同的观察。'}</p>` : ''}
+      ${task.afterMistake && p.queue.length>1?'<p class="studio-next-reason">根据这次尝试，下一步会换成选项辨认来重建联系，不直接认定主动提取已成功。</p>':''}
+      ${task.extra?.length?`<details class="studio-extra"><summary>看看补充材料（按需展开）</summary>
+        ${task.extra.map(material=>`<div><strong>${esc(material.label)}</strong><p>${esc(material.body)}</p></div>`).join('')}
+      </details>`:''}
+      ${task.audioText && task.format!=='audio'?`<div class="studio-after-audio">
+        ${button(icon('play')+' 听这句示范','studio-play','btn-soft btn-sm')}
+        <span>发音只是反馈后的学习支持，不形成听辨成功证据。</span></div>`:''}
+    </div>
+  </div>`:'';
+  const inside=`<div class="focus-eyebrow"><span class="focus-kicker">${esc(sc.subtitle)} · ${esc(task.performance==='written-recognition'?'支持性辨认':sc.letter+' / '+sc.title)}</span>
+      <span>${feedback?'看懂反馈再继续':'只展示当前任务真正需要的材料'}</span></div>
+    <div class="studio-goal-indicator"><span>本次目标表现</span>${esc(task.performance==='written-recognition'?'受支持的书面辨认':sc.goal)}</div>
+    ${textStimulus}
+    <p class="studio-instruction">${esc(task.instruction)}</p>
+    ${hintPanel}
+    <div class="focus-stage">${responseControls}${feedbackPanel}</div>`;
+  const canSubmit=task.format==='text' && p.draft.trim().length>0;
+  const controls=feedback
+    ? `<small>${p.index+1<p.queue.length?'下一步由刚才的表现决定':'已记录这次具体条件 · Enter 继续'}</small>
+      ${button((p.index+1<p.queue.length?'继续支持练习':'完成体验，返回场景')+' '+icon('arrow'),'studio-next','btn-primary focus-next')}`
+    : `<div class="focus-assist">
+        ${p.hintUsed?'<span class="chip">已查看提示</span>':button(icon('light')+' 给我一点提示','studio-hint','btn-outline btn-sm')}
+        ${button('我不知道','studio-unknown','btn-ghost btn-sm')}
+      </div>
+      ${task.format==='text'
+        ? button('提交回答 '+icon('arrow'),'studio-submit','btn-primary','id="variant-submit" '+(!canSubmit?'disabled':''))
+        : `<small>${choiceReady?'A–D 选择即提交':'先点击播放英文'}</small>`}`;
+  return focusLayout({
+    progress:`第 ${p.index+1} / ${p.queue.length} 项 · ${esc(sc.subtitle)} · R2 演示`,
+    progressPercent:Math.round(100*p.index/p.queue.length),
+    phaseClass:feedback?'is-feedback':'is-question',
+    inside, controls,
+    caption:task.format==='audio'?'音频只在浏览器实际发声后才能形成听辨尝试；求助后改为受支持观察。'
+      :task.supportedByDesign?'这是前一次困难后的支持练习，不会误记为独立提取成功。'
+      :'可以求助、直接说不知道或暂停。本次表现不会影响 R1 的真实 Goal 与进步。',
+    isPreview:true,
+    variantKind:'preview-'+task.format+(p.scenarioId==='rich'?' preview-rich':'')
+  });
 }
 function summaryPage() {
   const s=summary(state), weak=reviewDueIds(state), waiting=reviewWaitingIds(state);
@@ -306,22 +454,76 @@ function render() {
   if (!state.entered) state.screen='login';
   if (state.entered && !state.goal && state.screen!=='goal') state.screen='goal';
   if (state.screen==='focus' && !currentTask(state)) state.screen='workspace';
+  if (state.screen==='variant' && !currentPreview(state)) state.screen='lab';
   const view = state.screen==='login'?loginPage()
     :state.screen==='goal'?goalPage()
     :state.screen==='progress'?progressPage()
     :state.screen==='focus'?focusPage()
     :state.screen==='summary'?summaryPage()
+    :state.screen==='lab'?studioPage()
+    :state.screen==='variant'?variantFocus()
     :workspace();
   root.innerHTML=view+'<span id="announcer" class="screen-reader-only" role="status" aria-live="polite"></span>';
-  document.title='Luma · '+({ login:'欢迎', goal:'我的目标', workspace:'学习首页', progress:'学习进步', focus:'专注学习', summary:'本次回顾' }[state.screen]||'学习');
+  document.title='Luma · '+({ login:'欢迎', goal:'我的目标', workspace:'学习首页', progress:'学习进步', focus:'专注学习', summary:'本次回顾', lab:'R2 交互评审', variant:'R2 Focus' }[state.screen]||'学习');
 }
 function transact(fn, focusTarget) {
   const previousScreen = state.screen;
   change(fn); render();
   // Scroll to top only when entering Focus, never between its stages.
-  if (previousScreen !== "focus" && state.screen === "focus") window.scrollTo?.(0,0);
+  if (!['focus','variant'].includes(previousScreen) && ['focus','variant'].includes(state.screen)) window.scrollTo?.(0,0);
   if (focusTarget) root.querySelector(focusTarget)?.focus({ preventScroll: true });
 }
+let reviewSpeech = null;
+function stopReviewSpeech() {
+  if (reviewSpeech && window.speechSynthesis) {
+    reviewSpeech = null;
+    window.speechSynthesis.cancel();
+  }
+}
+function playReviewSpeech() {
+  const task=currentPreview(state), p=state.previewSession;
+  if (!task?.audioText || !p) return;
+  const synth=window.speechSynthesis, Speech=window.SpeechSynthesisUtterance;
+  if (!synth || typeof synth.speak!=='function' || typeof Speech!=='function') {
+    if(p.phase==='ask' && task.format==='audio') transact(s=>previewAudioError(s,'此浏览器无法播放语音，可改为文字学习'));
+    else {
+      const el=root.querySelector('.studio-after-audio span');
+      if(el) el.textContent='此浏览器未提供英文语音，请以文字材料学习。';
+    }
+    return;
+  }
+  stopReviewSpeech();
+  const u=new Speech(task.audioText);
+  const previewId=p.id, taskId=task.id, beforeAnswer=p.phase==='ask' && task.format==='audio';
+  u.lang='en-US'; u.rate=0.83; u.pitch=1;
+  reviewSpeech=u;
+  u.onstart=()=>{
+    if(reviewSpeech!==u) return;
+    const status=root.querySelector('.studio-audio-status');
+    if(status) status.textContent='正在播放 · 请听清楚后作答';
+  };
+  u.onend=()=>{
+    if(reviewSpeech!==u) return;
+    reviewSpeech=null;
+    if(state.previewSession?.id===previewId && currentPreview(state)?.id===taskId && beforeAnswer) {
+      // Only a completed audible utterance unlocks an independent listening attempt.
+      transact(s=>previewAudioCompleted(s));
+    }
+  };
+  u.onerror=()=>{
+    if(reviewSpeech!==u) return;
+    reviewSpeech=null;
+    if(state.previewSession?.id===previewId && currentPreview(state)?.id===taskId && beforeAnswer)
+      transact(s=>previewAudioError(s,'本次发声未完成；请重试或改用文字支持'));
+    else {
+      const el=root.querySelector('.studio-after-audio span');
+      if(el) el.textContent='语音播放失败，未形成听辨证据。';
+    }
+  };
+  try { synth.speak(u); }
+  catch { u.onerror?.(); }
+}
+
 function clickAction(element) {
   const action=element.dataset.action;
   switch(action) {
@@ -352,13 +554,29 @@ function clickAction(element) {
     case 'pause': transact(s=>pauseLesson(s)); break;
     case 'end-lesson': if(window.confirm('结束未完成的学习？已经发生的作答与提示记录会保留。')) transact(s=>abandonLesson(s)); break;
     case 'logout': transact(s=>{s.entered=false;s.screen='login';}); break;
-    case 'reset': if(window.confirm('重置本机的 Luma R1 演示记录？这会清空本次 Goal 和尝试，并恢复预置示例历史。')){resetDemo();render();} break;
+    case 'reset': if(window.confirm('重置本机的 Luma 演示记录？这会清空 Goal、R1 尝试和独立的 R2 评审记录，并恢复预置示例历史。')){stopReviewSpeech();resetDemo();render();} break;
     case 'progress': transact(s=>s.screen='progress'); break;
+    case 'studio-start': transact(s=>beginPreview(s,element.dataset.scenario)); break;
+    case 'studio-resume': transact(s=>resumePreview(s)); break;
+    case 'studio-hint': transact(s=>previewHint(s)); break;
+    case 'studio-transcript': stopReviewSpeech(); transact(s=>previewRevealText(s)); break;
+    case 'studio-answer': transact(s=>previewSubmit(s,element.dataset.answer),'.focus-next'); break;
+    case 'studio-unknown': transact(s=>previewSubmit(s,null),'.focus-next'); break;
+    case 'studio-submit': if(state.previewSession?.draft?.trim()) transact(s=>previewSubmit(s,s.previewSession.draft),'.focus-next'); break;
+    case 'studio-next': stopReviewSpeech(); transact(s=>previewNext(s)); break;
+    case 'studio-pause': stopReviewSpeech(); transact(s=>pausePreview(s)); break;
+    case 'studio-play': playReviewSpeech(); break;
   }
 }
 root.addEventListener('click',event=>{
   const control=event.target.closest('[data-action]');
   if(control && root.contains(control) && !control.disabled) clickAction(control);
+});
+root.addEventListener('input', event => {
+  if (state.screen !== 'variant' || event.target.id !== 'variant-answer') return;
+  change(s=>previewDraft(s,event.target.value));
+  const submit=root.querySelector('#variant-submit');
+  if (submit) submit.disabled=!event.target.value.trim();
 });
 root.addEventListener('change',event=>{
   if(event.target.id==='theme') transact(s=>{s.theme=event.target.value;});
@@ -383,3 +601,33 @@ document.addEventListener('keydown',event=>{
   }
 });
 render();
+
+document.addEventListener('keydown',event=>{
+  if(state.screen!=='variant' || event.repeat || event.metaKey || event.ctrlKey || event.altKey) return;
+  const p=state.previewSession,task=currentPreview(state);
+  if(!p || !task) return;
+  const focused=event.target || document.activeElement;
+  if(event.key==='Escape'){
+    event.preventDefault();stopReviewSpeech();transact(s=>pausePreview(s));return;
+  }
+  if(p.phase==='feedback' && event.key==='Enter'){
+    if(focused?.tagName==='BUTTON' && focused.dataset?.action!=='studio-next') return;
+    if(focused?.tagName==='SUMMARY') return;
+    event.preventDefault();stopReviewSpeech();transact(s=>previewNext(s));return;
+  }
+  if(p.phase!=='ask') return;
+  if(task.format==='text' && focused?.id==='variant-answer' && event.key==='Enter'){
+    event.preventDefault();
+    if(p.draft.trim()) transact(s=>previewSubmit(s,s.previewSession.draft),'.focus-next');
+    return;
+  }
+  if(focused?.isContentEditable || ['INPUT','TEXTAREA','SELECT'].includes(focused?.tagName)) return;
+  if(task.format==='text') return; // A–D only applies to choices, never spelling/recall input.
+  if(task.format==='audio' && !p.audioPlayed && !p.textRevealed) return;
+  const k=event.key.toUpperCase();
+  const index=/^[A-D]$/.test(k) ? k.charCodeAt(0)-65 :
+    /^[1-4]$/.test(event.key) ? Number(event.key)-1 : -1;
+  if(index<0 || !task.choices?.[index]) return;
+  event.preventDefault();
+  transact(s=>previewSubmit(s,task.choices[index]),'.focus-next');
+});
