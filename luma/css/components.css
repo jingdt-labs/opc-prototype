@@ -160,6 +160,75 @@
 .kbd { display:inline-block; font-size:11px; border:1px solid var(--line); border-radius:5px; padding:1px 5px; color:var(--muted); background:var(--surface); }
 .icon-text { display:inline-flex; align-items:center; gap:7px; }
 .icon-text svg { height:16px; width:16px; }
+
+/* R1 Repair F4 — theme-aware login artwork, without changing its composition. */
+.login-page {
+  --login-panel: #edf0fc; --login-ink: #242e55; --login-card: #ffffff;
+  --login-card-muted: #66708d; --login-rule: #e6e9f5;
+  --login-foot: #727b94; --login-eyebrow: #5663a8;
+  --login-ring: rgba(255,255,255,.12);
+}
+html[data-theme="dark"] .login-page {
+  --login-panel: #222a40; --login-ink: #e8edff; --login-card: #303a56;
+  --login-card-muted: #c0cbe5; --login-rule: #465373;
+  --login-foot: #acb9d8; --login-eyebrow: #bdc9ff;
+  --login-ring: rgba(179,196,255,.06);
+}
+@media (prefers-color-scheme: dark) {
+  html[data-theme="system"] .login-page {
+    --login-panel: #222a40; --login-ink: #e8edff; --login-card: #303a56;
+    --login-card-muted: #c0cbe5; --login-rule: #465373;
+    --login-foot: #acb9d8; --login-eyebrow: #bdc9ff;
+    --login-ring: rgba(179,196,255,.06);
+  }
+}
+.login-right { background:var(--login-panel); color:var(--login-ink); }
+.login-right::before {
+  box-shadow:0 0 0 90px var(--login-ring), 0 0 0 180px var(--login-ring);
+}
+.login-sample {background:var(--login-card);color:var(--login-ink);}
+.login-sample-description {color:var(--login-card-muted);font-size:13px;margin:8px 0 0;}
+.login-sample-foot {border-color:var(--login-rule);color:var(--login-foot);}
+.login-right .eyebrow {color:var(--login-eyebrow);}
+
+/* R1 Repair F2 — stable Focus shell. Only the learning body scrolls if needed. */
+.focus-page {height:100dvh;min-height:0;overflow:hidden;}
+.focus-body {flex:1 1 auto;min-height:0;overflow:hidden;padding:16px 24px 10px;}
+.focus-main {
+  display:flex;flex-direction:column;min-height:0;height:100%;max-height:660px;
+  width:min(100%,890px);margin:auto;
+}
+.focus-card {flex:1 1 auto;min-height:0;display:flex;flex-direction:column;}
+.focus-card-inside {
+  flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;
+  scrollbar-gutter:stable;padding:30px clamp(24px,6vw,76px) 20px;
+}
+.focus-card-bottom {flex:0 0 auto;min-height:74px;}
+.word-area {margin:17px 0 23px;}
+.word-underline {margin:13px auto 0;}
+.choice-grid {margin-top:10px;}
+.focus-stage {min-height:0;}
+.focus-response {
+  display:flex;align-items:center;gap:15px;justify-content:space-between;
+  border:1px solid var(--line);border-radius:13px;background:var(--surface-subtle);
+  padding:12px 16px;font-size:13px;color:var(--muted);
+}
+.focus-response strong {font-size:15px;color:var(--ink-strong);}
+.feedback-panel {margin-top:13px;padding:17px 20px;}
+.feedback-panel .explain {margin-top:10px;padding-top:10px;}
+.focus-caption {flex:0 0 auto;min-height:18px;margin:10px 0 0;}
+.focus-bottom {flex:0 0 auto;padding:0 24px 14px;}
+@media (max-height:740px) and (min-width:551px) {
+  .focus-topbar {padding-top:12px;padding-bottom:12px;}
+  .focus-body {padding-top:9px;padding-bottom:6px;}
+  .focus-card-inside {padding-top:18px;padding-bottom:12px;}
+  .focus-word {font-size:clamp(48px,5.2vw,67px);}
+  .word-area {margin:10px 0 16px;}
+  .choice {min-height:61px;}
+  .focus-card-bottom {min-height:65px;padding-top:10px;padding-bottom:10px;}
+  .focus-bottom {padding-bottom:7px;}
+}
+
 @media (max-width:1120px) {
   .app-shell { grid-template-columns:205px 1fr; }
   .hero, .feature-grid { grid-template-columns:1fr; }
@@ -205,4 +274,11 @@
   .focus-card-bottom small { display:none; }
   .goal-footer { flex-direction:column; align-items:stretch; }
   .summary-wrap .card { padding:25px; }
+
+  /* Small screens can scroll the document instead of clipping the lesson. */
+  .focus-page {height:auto;min-height:100dvh;overflow:visible;}
+  .focus-body {flex:1 1 auto;overflow:visible;}
+  .focus-main {height:auto;max-height:none;}
+  .focus-card {flex:none;}
+  .focus-card-inside {flex:none;overflow:visible;scrollbar-gutter:auto;}
 }

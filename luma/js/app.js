@@ -1,6 +1,6 @@
 import { intents, sampleWords, wordById, goalScope, goalPerformance, goalEvidence } from '../data/sample-data.js';
 import { state, change, resetDemo, allEvidence, timeLabel } from './state.js';
-import { wordStatus, weakWordIds, summary, nextBatch, startLesson, currentTask, hint, recordAnswer, nextTask, pauseLesson, abandonLesson, latestOutcome, resultDisplay } from './learning.js';
+import { wordStatus, reviewDueIds, reviewWaitingIds, summary, nextBatch, startLesson, currentTask, hint, recordAnswer, nextTask, pauseLesson, abandonLesson, latestOutcome, resultDisplay } from './learning.js';
 
 const root = document.getElementById('app');
 const symbolPaths = {
@@ -47,7 +47,7 @@ function loginPage() {
       <div class="eyebrow">A little, every day.</div>
       <div class="login-quotation">为英语精进，<br>日拱一卒。</div>
       <p class="login-quote-foot">Start where you are. Grow from there.<br>从真实起点开始，持续向前。</p>
-      <div class="login-sample"><span class="eyebrow">One word at a time</span><div class="login-sample-word">because</div><p style="font-size:13px;color:#66708d;margin:8px 0 0">今天也可以从一个熟悉的单词开始。</p><div class="login-sample-foot">Luma · 学习不必从完美开始</div></div>
+      <div class="login-sample"><span class="eyebrow">One word at a time</span><div class="login-sample-word">because</div><p class="login-sample-description">今天也可以从一个熟悉的单词开始。</p><div class="login-sample-foot">Luma · 学习不必从完美开始</div></div>
     </aside>
   </main>`;
 }
@@ -94,13 +94,15 @@ function workspace() {
   const s = summary(state);
   const active = !!state.session && !state.session.finished;
   const batch = nextBatch(state);
-  const weak = weakWordIds(state);
+  const weak = reviewDueIds(state);
+  const waiting = reviewWaitingIds(state);
   const primaryLabel = active ? '继续刚才的学习 ' + icon('arrow') :
     batch.length ? (s.firstCount ? '继续学习新词 ' : '开始今天的学习 ') + icon('arrow') :
     weak.length ? '继续巩固薄弱词 ' + icon('arrow') : '查看学习进步 ' + icon('arrow');
   const primaryAction = active ? 'resume' : batch.length ? 'start' : weak.length ? 'start-review' : 'progress';
   const decision = active ? '刚才的学习已保存。回到离开的位置，不必重新开始。'
-    : weak.length ? '根据你的表现，' + weak.map(id=>wordById[id].text).slice(0,2).join('、') + ' 值得再巩固。'
+    : weak.length ? '根据现有记录，' + weak.map(id=>wordById[id].text).slice(0,2).join('、') + ' 现在适合巩固或延迟复检。'
+      : waiting.length ? '刚练过的词先留一点间隔，再看看自己还记不记得。'
       : '先试着独立辨认；遇到陌生的词，也可以直接说不知道。';
   return shell(`<main class="content">
     <section class="hero" aria-label="欢迎与学习方向">
@@ -113,7 +115,7 @@ function workspace() {
     <section class="feature-grid" aria-label="当前学习安排">
       <div class="card card-feature">
         <div class="card-top"><span class="eyebrow">YOUR NEXT STEP</span><span class="chip">${icon(active?'pause':'light')} ${active?'学习已暂停':'建议从这里开始'}</span></div>
-        <h2>${active?'接着刚才的地方，继续。':weak.length?'先把薄弱的词，慢慢练稳。':'从几个常见词开始。'}</h2>
+        <h2>${active?'接着刚才的地方，继续。':weak.length?'先把需要巩固的词，慢慢练稳。':waiting.length && !batch.length?'这一轮先休息，留给下次复检。':'从几个常见词开始。'}</h2>
         <p>${esc(decision)}</p>
         <div class="action-row">${button(primaryLabel, primaryAction, 'btn-primary')}
           ${go('progress','看看学习记录','btn-ghost btn-sm')}
@@ -127,8 +129,9 @@ function workspace() {
     <section class="metrics" aria-label="本机演示中产生的学习记录">
       <div class="metric"><div class="metric-num mono">${s.attempted}</div><p>本次演示中的真实操作记录</p></div>
       <div class="metric"><div class="metric-num mono">${s.independent}</div><p>未用提示的书面词义辨认正确</p></div>
-      <div class="metric"><div class="metric-num mono">${s.review}</div><p>当前值得继续巩固的代表词</p></div>
+      <div class="metric"><div class="metric-num mono">${s.review}</div><p>现在适合巩固或复检的代表词</p></div>
     </section>
+    <p class="mini text-muted" style="margin-top:-22px;margin-bottom:32px">${waiting.length} 个代表词在等待延迟复检；今天不必立即重做。</p>
     <div class="goal-strip"><div><strong>真正记住，需要时间来检验。</strong>
       <p>今天答对，不等于过几天仍记得。Luma 会保留不同条件下的表现。</p></div>
       ${go('progress','查看为什么复习 '+icon('arrow'),'btn-soft btn-sm')}
@@ -173,7 +176,9 @@ function eventLabel(e) {
 }
 function progressPage() {
   const s=summary(state);
-  const weak=weakWordIds(state);
+  const weak=reviewDueIds(state);
+  const waiting=reviewWaitingIds(state);
+  const nextWords=nextBatch(state);
   const active=state.session && !state.session.finished;
   const history=allEvidence(state).slice().reverse();
   return shell(`<main class="content">
@@ -184,8 +189,9 @@ function progressPage() {
     <section class="metrics" aria-label="演示观察统计">
       <div class="metric"><div class="metric-num mono">${s.independent}</div><p>本机演示期间独立辨认正确的次数</p></div>
       <div class="metric"><div class="metric-num mono">${s.supported}</div><p>提示后或近期巩固正确的次数</p></div>
-      <div class="metric"><div class="metric-num mono">${weak.length}</div><p>建议继续巩固的代表词（含示例历史）</p></div>
+      <div class="metric"><div class="metric-num mono">${weak.length}</div><p>现在适合巩固／复检的代表词</p></div>
     </section>
+    <p class="mini text-muted" style="margin-top:-24px;margin-bottom:30px">另有 ${waiting.length} 个代表词刚练过，等待间隔后复检；并不代表已经掌握。</p>
     <div class="progress-layout">
       <section class="card"><div class="card-top"><div><span class="eyebrow">Vocabulary in focus</span><h2 style="margin:10px 0 3px">哪些词值得再看？</h2></div>
         <span class="chip">${sampleWords.length} 个代表词</span></div>
@@ -195,9 +201,9 @@ function progressPage() {
         </tbody></table></div>
       </section>
       <div class="stack">
-        <section class="card"><span class="eyebrow">Next learning decision</span><h3 style="margin-top:14px">${weak.length?'优先照顾需要巩固的词':'先继续积累观察'}</h3>
-          <p class="mini-detail text-muted">${weak.length?`目前建议回看 ${weak.map(id=>wordById[id].text).slice(0,3).join('、')}。近期看过释义后再答对，只能算巩固练习。`:'没有明显待巩固的代表词，但尚不能确认跨时间保持。'}</p>
-          <div style="margin-top:22px">${active?button('先继续当前学习 '+icon('arrow'),'resume','btn-primary btn-wide'):weak.length?button('开始针对性巩固 '+icon('arrow'),'start-review','btn-primary btn-wide'):button('继续学习 '+icon('arrow'),'start','btn-primary btn-wide')}</div>
+        <section class="card"><span class="eyebrow">Next learning decision</span><h3 style="margin-top:14px">${weak.length?'现在可以复习这些词':waiting.length?'刚练过，等待更有价值的复检':'先继续积累观察'}</h3>
+          <p class="mini-detail text-muted">${weak.length?`目前可复检 ${weak.map(id=>wordById[id].text).slice(0,3).join('、')}。是否算保持证据取决于独立性和实际间隔。`:waiting.length?'最近练习过的词暂未到复检时机，先休息或认识新词。':'暂无到期复习，但独立表现仍需要日后验证。'}</p>
+          <div style="margin-top:22px">${active?button('先继续当前学习 '+icon('arrow'),'resume','btn-primary btn-wide'):weak.length?button('开始到期复习 '+icon('arrow'),'start-review','btn-primary btn-wide'):nextWords.length?button('继续学习新词 '+icon('arrow'),'start','btn-primary btn-wide'):go('workspace','返回学习首页','btn-outline btn-wide')}</div>
         </section>
         <section class="card"><span class="eyebrow">Recent evidence</span><h3 style="margin-top:12px">观察记录</h3>
           ${history.length?history.slice(0,8).map(e=>`<div class="evidence-item"><strong>${esc(wordById[e.wordId]?.text || e.wordId)} · ${esc(eventLabel(e))}</strong>
@@ -235,7 +241,7 @@ function focusPage() {
     <div class="explain"><p><strong>正确词义：${esc(word.answer)}</strong> <span class="text-muted">· ${esc(word.pos)}</span></p>
       <p>${esc(word.note)} ${esc(word.contrast)}</p>
       ${outcome?.result==='incorrect'||outcome?.result==='unknown'||outcome?.result==='supported-correct'?
-        '<p class="mini text-muted" style="margin-top:8px">稍后会安排巩固；即使马上再答对，也不会记为独立掌握。</p>':''}</div>
+        '<p class="mini text-muted" style="margin-top:8px">先看懂解释，再根据复习时机继续观察；即刻重答不等于独立掌握。</p>':''}</div>
   </div>`:'';
   return `<main class="focus-page">
     <header class="focus-topbar">
@@ -246,18 +252,20 @@ function focusPage() {
     </header>
     <div class="focus-body"><div class="focus-main">
       <section class="focus-card" aria-label="当前词汇学习任务">
-        <div class="focus-card-inside">
+        <div class="focus-card-inside ${feedback?"is-feedback":"is-question"}">
           <div class="focus-eyebrow"><span class="focus-kicker">${esc(label)}</span><span>${feedback?'看懂反馈后再继续':'先自己想一想'}</span></div>
           <div class="word-area"><p>${feedback?'本次学习的词汇':'你觉得这个英文词是什么意思？'}</p>
             <h1 class="focus-word">${esc(word.text)}</h1><div class="word-underline"></div></div>
           ${hintPanel}
-          <div class="choice-grid" role="group" aria-label="选择词义">${choices}</div>
-          ${feedbackPanel}
+          <div class="focus-stage">
+            ${feedback ? `<div class="focus-response" aria-label="本次回答"><span>你的回答</span><strong>${esc(outcome?.response)}</strong></div>` : `<div class="choice-grid" role="group" aria-label="选择词义">${choices}</div>`}
+            ${feedbackPanel}
+          </div>
         </div>
         <div class="focus-card-bottom">
           ${feedback?`<small>按 Enter 进入下一项，或停留读完解释</small>${button((lesson.index+1===lesson.queue.length?'完成本次学习':'继续学习')+' '+icon('arrow'),'next','btn-primary focus-next')}`:
             `<div class="focus-assist">${lesson.hintUsed?'<span class="chip">已查看提示</span>':button(icon('light')+' 给我一点提示','hint','btn-outline btn-sm')}
-              ${button('我不知道','unknown','btn-ghost btn-sm')}</div><small>选择即提交 · 可按 1–4 作答</small>`}
+              ${button('我不知道','unknown','btn-ghost btn-sm')}</div><small>选择即提交 · 可按 A–D 作答</small>`}
         </div>
       </section>
       <div class="focus-caption">${task.kind==='reinforce'?'这次紧接着讲解后的练习，不会当作跨时间保持证据。':
@@ -267,7 +275,7 @@ function focusPage() {
   </main>`;
 }
 function summaryPage() {
-  const s=summary(state), weak=weakWordIds(state);
+  const s=summary(state), weak=reviewDueIds(state), waiting=reviewWaitingIds(state);
   const batch=nextBatch(state);
   const last=state.session;
   const thisSession=state.events.filter(e=>e.sessionId===last?.id);
@@ -282,7 +290,7 @@ function summaryPage() {
         <div class="metric"><div class="metric-num mono">${independent}</div><p>无提示正确</p></div>
         <div class="metric"><div class="metric-num mono">${supported}</div><p>支持／巩固正确</p></div>
       </div>
-      <div class="inline-tip">${icon('light')}<span>${weak.length?`接下来可以优先巩固 ${weak.map(id=>wordById[id].text).slice(0,3).join('、')}。`:'下一步可以继续接触新词，但今天的成功还要留待日后再观察。'}</span></div>
+      <div class="inline-tip">${icon('light')}<span>${weak.length?`现在可以巩固或复检 ${weak.map(id=>wordById[id].text).slice(0,3).join('、')}。`:waiting.length?'这次练习已经完成。刚练过的词留到间隔之后再复检，避免反复刷同一道题。':'下一步可以继续接触新词，但今天的成功还要留待日后再观察。'}</span></div>
       <div class="summary-actions">
         ${go('progress','看看哪些词要复习 '+icon('arrow'),'btn-primary')}
         ${go('workspace','返回学习首页','btn-outline')}
@@ -307,8 +315,11 @@ function render() {
   document.title='Luma · '+({ login:'欢迎', goal:'我的目标', workspace:'学习首页', progress:'学习进步', focus:'专注学习', summary:'本次回顾' }[state.screen]||'学习');
 }
 function transact(fn, focusTarget) {
+  const previousScreen = state.screen;
   change(fn); render();
-  if (focusTarget) root.querySelector(focusTarget)?.focus();
+  // Scroll to top only when entering Focus, never between its stages.
+  if (previousScreen !== "focus" && state.screen === "focus") window.scrollTo?.(0,0);
+  if (focusTarget) root.querySelector(focusTarget)?.focus({ preventScroll: true });
 }
 function clickAction(element) {
   const action=element.dataset.action;
@@ -353,14 +364,20 @@ root.addEventListener('change',event=>{
 });
 document.addEventListener('keydown',event=>{
   if(state.screen!=='focus'||event.metaKey||event.ctrlKey||event.altKey||event.repeat) return;
-  if(['SELECT','INPUT','TEXTAREA'].includes(document.activeElement?.tagName)) return;
+  const focused = event.target || document.activeElement;
+  if (focused?.isContentEditable || ['SELECT','INPUT','TEXTAREA'].includes(focused?.tagName)) return;
   if(event.key==='Escape'){event.preventDefault();transact(s=>pauseLesson(s));return;}
   if(state.session?.phase==='feedback' && event.key==='Enter'){
-    event.preventDefault();transact(s=>nextTask(s),'.focus-card');return;
+    if (focused?.tagName === 'BUTTON' && focused?.dataset?.action !== 'next') return;
+    event.preventDefault();transact(s=>nextTask(s));return;
   }
-  if(state.session?.phase==='ask' && /^[1-4]$/.test(event.key)) {
+  if(state.session?.phase==='ask') {
+    const key = event.key.toUpperCase();
+    const index = /^[A-D]$/.test(key) ? key.charCodeAt(0)-65 :
+      /^[1-4]$/.test(event.key) ? Number(event.key)-1 : -1;
+    if (index < 0) return;
     const options=currentTask(state).kind==='first'?wordById[currentTask(state).wordId].choices:wordById[currentTask(state).wordId].revisitChoices;
-    const answer=options[Number(event.key)-1];
+    const answer=options[index];
     if(answer){event.preventDefault();transact(s=>recordAnswer(s,answer),'.focus-next');}
   }
 });

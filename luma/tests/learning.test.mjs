@@ -10,7 +10,7 @@ globalThis.window = { localStorage: {
 const { state, resetDemo, change, allEvidence } = await import('../js/state.js');
 const {
   startLesson, currentTask, recordAnswer, hint, nextTask, pauseLesson, latestOutcome,
-  wordStatus, weakWordIds, summary, nextBatch
+  wordStatus, reviewDueIds, reviewWaitingIds, summary, nextBatch, abandonLesson
 } = await import('../js/learning.js');
 
 test('fixture history remains explicitly separate and can prompt review',()=>{
@@ -73,19 +73,56 @@ test('paused focus preserves hint exposure and returns to same task',()=>{
   assert.equal(stored.events[0].hintUsed,true);
 });
 
-test('same-day review correct is not a new independent or delayed proof',()=>{
+test('first unassisted success waits now, becomes eligible after delay, then waits again',()=>{
   resetDemo(); startLesson(state);
-  recordAnswer(state,null);
-  nextTask(state);
-  for(const id of ['through','enough','decide']){
-    recordAnswer(state,wordById[id].answer); nextTask(state);
-  }
-  recordAnswer(state,wordById.because.answer);nextTask(state);
-  assert.equal(state.session.finished,true);
-  assert.equal(startLesson(state,'review'),true);
-  assert.equal(currentTask(state).kind,'review');
-  recordAnswer(state,wordById.because.answer);
+  const t0 = new Date('2026-11-21T08:00:00Z');
+  recordAnswer(state,null,t0); nextTask(state);
+  recordAnswer(state,wordById.through.answer,t0);
+  assert.equal(latestOutcome(state).result,'independent-correct');
+  assert.equal(wordStatus(state,'through',t0.getTime()+1000).dueNow,false);
+  assert.equal(wordStatus(state,'through',t0.getTime()+1000).awaiting,true);
+  assert.ok(reviewWaitingIds(state,t0.getTime()+1000).includes('through'));
+  assert.ok(!reviewDueIds(state,t0.getTime()+1000).includes('through'));
+  assert.ok(reviewDueIds(state,t0.getTime()+25*3600000).includes('through'));
+  abandonLesson(state);
+  assert.equal(startLesson(state,'review',t0.getTime()+25*3600000),true);
+  const index=state.session.queue.findIndex(task=>task.wordId==='through');
+  assert.ok(index>=0);
+  state.session.index=index;
+  recordAnswer(state,wordById.through.answer,new Date(t0.getTime()+25*3600000));
+  assert.equal(latestOutcome(state).result,'independent-correct');
+  assert.equal(latestOutcome(state).delayed,true);
+  assert.equal(wordStatus(state,'through',t0.getTime()+25*3600000+1000).awaiting,true);
+  assert.equal(wordStatus(state,'through',t0.getTime()+50*3600000).dueNow,true);
+});
+
+test('initial unknown allows one immediate reinforcement; supported review does not loop',()=>{
+  resetDemo(); startLesson(state);
+  const t0 = new Date('2026-11-21T08:00:00Z');
+  recordAnswer(state,null,t0);
+  assert.equal(wordStatus(state,'because',t0.getTime()+1000).dueNow,true);
+  abandonLesson(state);
+  assert.equal(startLesson(state,'review',t0.getTime()+1000),true);
+  assert.equal(currentTask(state).wordId,'because');
+  recordAnswer(state,wordById.because.answer,new Date(t0.getTime()+60000));
   assert.equal(latestOutcome(state).result,'supported-correct');
   assert.equal(latestOutcome(state).delayed,false);
-  assert.ok(weakWordIds(state).includes('because'));
+  assert.equal(wordStatus(state,'because',t0.getTime()+60001).awaiting,true);
+  assert.equal(reviewDueIds(state,t0.getTime()+60001).includes('because'),false);
+  abandonLesson(state);
+  assert.equal(startLesson(state,'review',t0.getTime()+60001),false);
+  assert.equal(startLesson(state,'review',t0.getTime()+25*3600000),true);
+});
+
+test('wrong delayed review retains failure and waits before trying again',()=>{
+  resetDemo(); startLesson(state);
+  const t0 = new Date('2026-11-21T08:00:00Z');
+  recordAnswer(state,null,t0); abandonLesson(state);
+  startLesson(state,'review',t0.getTime()+1000);
+  recordAnswer(state,'不是正确词义',new Date(t0.getTime()+2000));
+  assert.equal(latestOutcome(state).result,'incorrect');
+  abandonLesson(state);
+  assert.equal(wordStatus(state,'because',t0.getTime()+3000).awaiting,true);
+  assert.equal(startLesson(state,'review',t0.getTime()+3000),false);
+  assert.equal(wordStatus(state,'because',t0.getTime()+25*3600000).dueNow,true);
 });

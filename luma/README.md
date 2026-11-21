@@ -13,7 +13,16 @@ This is a **high-fidelity interactive prototype**, not the production Learning R
 5. Finish the session, inspect **学习进步** and the evidence history, then start **针对性巩固**. The review does not turn same-day practice into independent retention evidence.
 6. Test **浅色 / 深色 / 跟随系统**, refresh during a question or feedback, and use **重置演示数据** to replay.
 
-**Keyboard:** 1–4 selects an answer; Enter advances after feedback; Esc pauses.
+**Keyboard:** A/B/C/D (case-insensitive) selects the matching lettered option; 1–4 remains as an optional fallback. Enter advances after feedback; Esc pauses. Keyboard answers are disabled while typing in editable inputs or using selectors.
+
+## R1 Repair — F1–F4
+
+- **F1 · Answer shortcuts:** visible A/B/C/D matches the primary keyboard shortcuts (upper/lowercase). Number keys 1–4 are compatible but not advertised.
+- **F2 · Focus continuity:** choice grid appears **only** in the question phase. Feedback replaces it with a compact response recap plus explanation; the card has a stable height/action footer. At desktop sizes, long teaching text scrolls **inside the card**, not the entire viewport. Programmatic focus uses `preventScroll`; entering Focus intentionally resets the previous workspace scroll position.
+- **F3 · Review timing vs. need:** an unsupported first failure may receive one immediate reinforcement, but review/reinforcement outcomes are **held for delayed recheck**. Unassisted correct responses also receive a future recheck opportunity. The prototype uses **24 hours as a demonstrative eligibility threshold**, not a calibrated learning or retention policy. Items not due are visible in progress but never placed into an immediate review queue; due/awaiting counts and buttons reflect this distinction. Sample-history observations remain marked and separate.
+- **F4 · Login dark theme:** themed tokens now control the dual-column illustration background, sample card, text, and decorative rings for Light/Dark/System.
+
+**Review visually in a real browser:** check a 1440×900 and lower-height laptop viewport while switching question → feedback → next, including hint and long text. CSS constrains full-page scrolling on desktops but allows an inner teaching-text scroll if material is long; on small phones, the page can naturally scroll.
 
 ## Scope and semantics
 
@@ -21,7 +30,7 @@ This is a **high-fidelity interactive prototype**, not the production Learning R
 - Two preloaded `because` observations model an earlier independent recognition and a later failure. They are visibly labeled **示例历史（预置）** and are **not counted as actions performed in the browser**.
 - Actual interactions are saved in browser `localStorage`; this is local prototype persistence, not authenticated cloud storage.
 - Correct unassisted responses, hinted correct responses, explicit unknown, wrong attempts, and immediately reinforced correct responses are distinct. Answer exposure is kept; immediate practice never constitutes spaced retention.
-- The queue is deterministic and bounded: four initial items, optionally delayed same-session reinforcement for uncertain items, a second batch of four examples, and a targeted review of items still needing work. Nothing claims a calibrated adaptive or spaced repetition algorithm.
+- The queue is deterministic and bounded: four initial items, optionally delayed same-session reinforcement for uncertain items, a second batch of four examples, and a targeted review **only when items are currently due**. Nothing claims a calibrated adaptive or spaced repetition algorithm.
 - Goal changes require explicit confirmation; routine task adaptation stays within the goal.
 - Browser focus mode uses a distraction-free full viewport **app shell**, not the browser Fullscreen API. Focus has a stable header, visible exit, and optional keyboard shortcuts.
 

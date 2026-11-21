@@ -2,30 +2,43 @@ import { sampleWords, starterIds, secondIds, wordById } from '../data/sample-dat
 import { allEvidence } from './state.js';
 
 const fresh = (s, wordId) => allEvidence(s).filter(e => e.wordId === wordId);
-const sameDay = (a, b) => new Date(a).toDateString() === new Date(b).toDateString();
+// R1 demo scheduling threshold, NOT a spaced-repetition algorithm.
+export const REVIEW_DELAY_MS = 24 * 60 * 60 * 1000;
 
-export function wordStatus(s, wordId) {
+export function wordStatus(s, wordId, now = Date.now()) {
   const history = fresh(s, wordId);
   const last = history[history.length - 1];
-  if (!last) return { type: 'unseen', title: '尚未尝试', detail: '还没有这项表现的观察。', needsReview: false };
-  if (last.result === 'independent-correct') {
-    return {
-      type: 'observed', title: '有一次独立答对',
-      detail: last.delayed ? '这是间隔后的书面辨认观察，仍不能证明永久记住。'
-        : '只是当次的书面辨认表现，保持情况还要隔段时间再看。',
-      needsReview: false
-    };
+  if (!last) return { type: 'unseen', title: '尚未尝试', detail: '还没有这项表现的观察。',
+    dueNow: false, awaiting: false, needsReview: false };
+  // An unsupported first failure merits one same-session reinforcement; if interrupted,
+  // it is still useful to finish that first reinforcement. Reviews never loop immediately.
+  if (last.kind === 'first' && ['unknown', 'incorrect'].includes(last.result)) {
+    return { type: 'needs', title: '现在适合巩固',
+      detail: '首次遇到困难，先把词义联系建立起来；随后再等待独立复检。',
+      dueNow: true, awaiting: false, needsReview: true };
   }
-  if (last.result === 'practice-correct' || last.result === 'supported-correct') {
-    return { type: 'supported', title: '已练习 · 待独立复检',
-      detail: '有帮助或近期看过答案；这次正确不能当作独立掌握。', needsReview: true };
-  }
-  return { type: 'needs', title: last.result === 'unknown' ? '刚表示不知道' : '需要巩固',
-    detail: '先理解正确词义，再找机会独立观察。', needsReview: true };
+  const dueAt = Date.parse(last.at) + REVIEW_DELAY_MS;
+  const dueNow = Number.isFinite(dueAt) && now >= dueAt;
+  if (dueNow) return {
+    type: 'due', title: '可以延迟复检',
+    detail: '距上次尝试已有间隔，可再次观察书面词义辨认；仍不能据此推断永久掌握。',
+    dueNow: true, awaiting: false, needsReview: true, dueAt
+  };
+  if (last.result === 'independent-correct') return {
+    type: 'observed', title: '独立答对 · 待保持验证',
+    detail: '已有一次独立书面辨认正确；约 24 小时后可再检查是否保持。',
+    dueNow: false, awaiting: true, needsReview: true, dueAt
+  };
+  return { type: 'supported', title: '刚练过 · 等待复检',
+    detail: '刚获得反馈或巩固，不再立即反复测同一词；约 24 小时后独立复检。',
+    dueNow: false, awaiting: true, needsReview: true, dueAt };
 }
 
-export function weakWordIds(s) {
-  return sampleWords.map(w => w.id).filter(id => wordStatus(s, id).needsReview);
+export function reviewDueIds(s, now = Date.now()) {
+  return sampleWords.map(w => w.id).filter(id => wordStatus(s, id, now).dueNow);
+}
+export function reviewWaitingIds(s, now = Date.now()) {
+  return sampleWords.map(w => w.id).filter(id => wordStatus(s, id, now).awaiting);
 }
 export function summary(s) {
   const recent = s.events;
@@ -34,7 +47,8 @@ export function summary(s) {
     attempted: recent.length,
     independent: recent.filter(e => e.result === 'independent-correct').length,
     supported: recent.filter(e => e.result === 'supported-correct' || e.result === 'practice-correct').length,
-    review: weakWordIds(s).length,
+    review: reviewDueIds(s).length,
+    waiting: reviewWaitingIds(s).length,
     triedWords: new Set(recent.map(e => e.wordId)).size,
     firstCount: first.length
   };
@@ -45,12 +59,12 @@ export function nextBatch(s) {
   if (secondIds.some(id => !touched.has(id))) return secondIds.filter(id => !touched.has(id)).slice(0,4);
   return [];
 }
-export function startLesson(s, mode = 'new') {
+export function startLesson(s, mode = 'new', now = Date.now()) {
   const active = s.session && !s.session.finished;
   if (active) { s.session.paused = false; s.screen = 'focus'; return true; }
   const freshBatch = nextBatch(s);
   const isReview = mode === 'review' || (mode === 'new' && freshBatch.length === 0);
-  const ids = isReview ? weakWordIds(s).slice(0,4) : freshBatch;
+  const ids = isReview ? reviewDueIds(s, now).slice(0,4) : freshBatch;
   if (!ids.length) return false;
   s.sequence += 1;
   s.session = {
@@ -68,14 +82,16 @@ export function hint(s) {
   if (!currentTask(s) || s.session.phase !== 'ask') return;
   s.session.hintUsed = true;
 }
-export function recordAnswer(s, response) {
+export function recordAnswer(s, response, now = new Date()) {
   const task = currentTask(s);
   if (!task || s.session.phase !== 'ask') return false;
   const w = wordById[task.wordId];
   if (!w) return false;
-  const now = new Date().toISOString();
+  const at = new Date(now).toISOString();
   const previous = fresh(s, w.id);
-  const recentExposure = previous.some(e => e.source !== 'sample-history' && sameDay(e.at, now));
+  const recentExposure = previous.some(e =>
+    e.source !== 'sample-history' && Date.parse(at) >= Date.parse(e.at) &&
+    Date.parse(at) - Date.parse(e.at) < REVIEW_DELAY_MS);
   const wasSupported = s.session.hintUsed || task.kind === 'reinforce' || (task.kind === 'review' && recentExposure);
   const correct = response !== null && response === w.answer;
   let result = 'incorrect';
@@ -88,9 +104,9 @@ export function recordAnswer(s, response) {
     kind: task.kind, materialId: w.id + '.' + task.kind + '.r1',
     response: response ?? '我不知道', result,
     hintUsed: s.session.hintUsed, exposure: task.kind === 'reinforce' || recentExposure,
-    shownAnswerAfter: true, at: now, source: 'this-demo',
+    shownAnswerAfter: true, at, source: 'this-demo',
     delayed: task.kind === 'review' && previous.length > 0 && !recentExposure &&
-      (Date.parse(now) - Date.parse(previous[previous.length-1].at) >= 18 * 3600000)
+      (Date.parse(at) - Date.parse(previous[previous.length-1].at) >= REVIEW_DELAY_MS)
   };
   s.events.push(event);
   s.session.outcome = event.id;
