@@ -98,9 +98,10 @@ function workspace() {
   const waiting = reviewWaitingIds(state);
   const primaryLabel = active ? '继续刚才的学习 ' + icon('arrow') :
     batch.length ? (s.firstCount ? '继续学习新词 ' : '开始今天的学习 ') + icon('arrow') :
-    weak.length ? '继续巩固薄弱词 ' + icon('arrow') : '查看学习进步 ' + icon('arrow');
+    weak.length ? '开始到期复检 ' + icon('arrow') : '查看学习进步 ' + icon('arrow');
   const primaryAction = active ? 'resume' : batch.length ? 'start' : weak.length ? 'start-review' : 'progress';
   const decision = active ? '刚才的学习已保存。回到离开的位置，不必重新开始。'
+    : batch.length ? (weak.length ? '先认识几个常见词。另有到期复检，可从「学习进步」开始。' : '先认识几个常见词，遇到陌生词可以直接说不知道。')
     : weak.length ? '根据现有记录，' + weak.map(id=>wordById[id].text).slice(0,2).join('、') + ' 现在适合巩固或延迟复检。'
       : waiting.length ? '刚练过的词先留一点间隔，再看看自己还记不记得。'
       : '先试着独立辨认；遇到陌生的词，也可以直接说不知道。';
@@ -115,7 +116,7 @@ function workspace() {
     <section class="feature-grid" aria-label="当前学习安排">
       <div class="card card-feature">
         <div class="card-top"><span class="eyebrow">YOUR NEXT STEP</span><span class="chip">${icon(active?'pause':'light')} ${active?'学习已暂停':'建议从这里开始'}</span></div>
-        <h2>${active?'接着刚才的地方，继续。':weak.length?'先把需要巩固的词，慢慢练稳。':waiting.length && !batch.length?'这一轮先休息，留给下次复检。':'从几个常见词开始。'}</h2>
+        <h2>${active?'接着刚才的地方，继续。':batch.length?'从几个常见词开始。':weak.length?'有几个词，今天适合回头看一看。':waiting.length?'这一轮先休息，留给下次复检。':'从几个常见词开始。'}</h2>
         <p>${esc(decision)}</p>
         <div class="action-row">${button(primaryLabel, primaryAction, 'btn-primary')}
           ${go('progress','看看学习记录','btn-ghost btn-sm')}
