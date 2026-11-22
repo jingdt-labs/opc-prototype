@@ -17,17 +17,30 @@ test('scenario aggregates cover the specified full Goal with a distinct unknown 
  assert.equal(progressFor('start').unknown,500);
  assert.equal(progressFor('start').reached,0);
 });
-test('whole-range verdict allows limited fluctuations but rejects material gaps',()=>{
+test('first closed Goal requires 500/500 independently evidenced target items',()=>{
  for(const key of Object.keys(DEMOS)){
-  assert.equal(canDeclareGoal(progressFor(key)),key==='achieved',key);
+  const p=progressFor(key);
+  assert.equal(canDeclareGoal(p),key==='achieved',key);
+  assert.equal(p.status==='achieved',key==='achieved',key);
  }
+ const near=progressFor('near'),achieved=progressFor('achieved');
+ assert.equal(near.reached,499);
+ assert.equal(near.remaining,1);
+ assert.equal(achieved.reached,500);
+ assert.equal(achieved.remaining,0);
+ assert.equal(achieved.strengthen,0);
+ assert.equal(achieved.unknown,0);
+ assert.equal(canDeclareGoal({...achieved,gained:392,strengthen:1}),false); // 499 despite verified flag
+ assert.equal(canDeclareGoal({...achieved,gained:392,unknown:1}),false); // missing evidence
+ assert.equal(canDeclareGoal({...achieved,evidenceReview:'insufficient'}),false);
+ assert.equal(canDeclareGoal({...achieved,verified:false}),false);
+ assert.equal(canDeclareGoal({...achieved,materialRisk:true}),false);
+ assert.equal(canDeclareGoal({...achieved,gained:394}),false); // malformed > 500
  assert.match(goalMessage('gap').detail,/13/);
  assert.match(goalMessage('near').title,/接近/);
+ assert.match(goalMessage('near').detail,/499\/500/);
+ assert.match(goalMessage('achieved').detail,/100%/);
  assert.match(goalMessage('achieved').detail,/跨时间/);
- assert.ok(progressFor('achieved').strengthen>0);
- assert.ok(progressFor('achieved').unknown>0);
- assert.equal(canDeclareGoal({...progressFor('achieved'),materialRisk:true}),false);
- assert.equal(canDeclareGoal({...progressFor('achieved'),evidenceReview:'insufficient'}),false);
 });
 test('meaning recognition uses the word meaning, not the sentence answer',()=>{
  const word=taskFor('borrow','meaning');
@@ -191,4 +204,64 @@ test('Goal page offers only supported time preference, no misleading re-confirm 
  assert.match(html,/data-field="duration"/);
  assert.doesNotMatch(html,/request-goal|重新确认目标/);
  assert.match(html,/目标范围与表现已确认/);
+});
+
+test('supported feedback uses clear result hierarchy and separate word, meaning, example',()=>{
+ const session={type:'daily',items:assessmentQueue(),idx:0,stage:'feedback',mode:'choice',
+  micStatus:'',finished:false,lastAttempt:{result:'supported-correct'}};
+ const html=renderPage(state({view:'focus',session}));
+ assert.match(html,/在帮助下练对了/);
+ assert.match(html,/以后还需要独立观察/);
+ assert.match(html,/r3-feedback-status/);
+ assert.match(html,/r3-feedback-word-line/);
+ assert.match(html,/r3-feedback-meaning/);
+ assert.match(html,/r3-feedback-example-line/);
+ assert.match(html,/data-speech-kind="word"/);
+ assert.match(html,/data-speech-kind="sentence"/);
+ assert.doesNotMatch(html,/r3-feedback-symbol|◌/);
+ assert.ok(html.indexOf('这次学习重点')<html.indexOf('r3-feedback-word-line'));
+ assert.ok(html.indexOf('r3-feedback-word-line')<html.indexOf('r3-feedback-meaning'));
+ assert.ok(html.indexOf('r3-feedback-meaning')<html.indexOf('r3-feedback-example-line'));
+ assert.ok(html.indexOf('r3-feedback-example-line')<html.indexOf('data-action="next"'));
+});
+test('all four feedback types use the same hierarchy with non-shaming titles',()=>{
+ const scenarios=[
+  ['independent-correct','这次独立答对了','独立作答'],
+  ['supported-correct','在帮助下练对了','得到帮助'],
+  ['unverified','这次还不能确定','有待确认'],
+  ['incorrect','这次还没有独立完成','继续学习']
+ ];
+ for(const [result,heading,tag] of scenarios){
+  const html=renderPage(state({view:'focus',session:{type:'daily',items:assessmentQueue(),idx:0,
+   stage:'feedback',mode:'choice',micStatus:'',finished:false,lastAttempt:{result}}}));
+  assert.match(html,new RegExp(heading));
+  assert.match(html,new RegExp(tag));
+  assert.match(html,/r3-feedback-content/);
+  assert.match(html,/r3-focus-card-feedback/);
+  assert.match(html,/data-action="next"/);
+ }
+});
+test('499/500 and 500/500 goal pages agree with home and detailed progress',()=>{
+ for(const [scenario,reached,remaining,complete] of [['near',499,1,false],['achieved',500,0,true]]){
+  for(const view of ['home','progress','goal-review']){
+   const html=renderPage(state({scenario,view}));
+   assert.match(html,new RegExp('>'+reached+'</strong>'));
+   assert.match(html,new RegExp('100% 达标|99\\.8% 达标'));
+   assert.match(html,new RegExp(complete?'本阶段目标已完成|目标已达成|这一阶段的学习目标已达成':'还有 1 项尚未达标|接近目标|还不能宣布达成'));
+   if(complete){
+    assert.match(html,/已有基础/);
+    assert.match(html,/新增进步/);
+    assert.match(html,/需要巩固/);
+    assert.match(html,/尚待了解/);
+   }
+  }
+  const goalView=renderPage(state({scenario,view:'goal'}));
+  assert.match(goalView,new RegExp(complete?'这一阶段的学习目标已达成':'接近目标，还差最后 1 项'));
+ }
+});
+test('goal review states 100 percent coverage, not perfect future answer accuracy',()=>{
+ const html=renderPage(state({scenario:'achieved',view:'goal-review'}));
+ assert.match(html,/全部 500 项学习重点均已逐项达到/);
+ assert.match(html,/不意味着未来每次作答零失误/);
+ assert.doesNotMatch(html,/少量待巩固|少量待复核|有限波动/);
 });

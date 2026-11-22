@@ -7,25 +7,29 @@ export const DEMOS = {
   start: {label:'第一次开始', base:0, gained:0, strengthen:0, unknown:500, note:'还在逐步了解原有基础。没有观察过，不代表不会。'},
   growing: {label:'持续学习中', base:92, gained:136, strengthen:78, unknown:194, note:'一部分词汇已经在间隔后的独立识词和简单句中表现稳定。'},
   review: {label:'阶段测评后', base:96, gained:202, strengthen:112, unknown:90, note:'阶段测评发现少量句子理解仍不稳定，后续会优先巩固。'},
-  near: {label:'接近目标', base:104, gained:349, strengthen:30, unknown:17, note:'已经很接近目标，但少数薄弱联系和证据缺口仍需解决。'},
+  near: {label:'接近目标 · 499/500', base:107, gained:392, strengthen:1, unknown:0, note:'499 项已有可信达标依据，最后 1 项仍需巩固；不能提前宣布完成。'},
   gap: {label:'表现良好，证据不足', base:105, gained:380, strengthen:2, unknown:13, note:'已观察到的内容表现不错，仍不能用局部优秀代表完整范围。'},
-  achieved: {label:'目标已达成', base:107, gained:388, strengthen:3, unknown:2, note:'少量表现波动与局部待复核仍然存在；整体范围的独立词义理解、跨时间保持和新句理解已有充分、可复核证据。', verified:true, evidenceReview:'sufficient', materialRisk:false}
+  achieved: {label:'目标已达成 · 500/500', base:107, gained:393, strengthen:0, unknown:0, note:'确认范围内 500 项均已逐项取得可信达标依据；后续偶发失误仍可适当复核，不代表永久不会忘记。', verified:true, evidenceReview:'sufficient', materialRisk:false}
 };
 export function progressFor(key='start') {
   const p=DEMOS[key]||DEMOS.start;
   return {...p, key, reached:p.base+p.gained, total:GOAL_SIZE,
-    remaining:p.strengthen+p.unknown, status:p.verified?'achieved':p.unknown?'pending':'review'};
+    remaining:p.strengthen+p.unknown, status:canDeclareGoal(p)?'achieved':p.unknown?'pending':'review'};
 }
 export function canDeclareGoal(p) {
-  // This is an authored whole-Goal review verdict, not a universal score or zero-error formula.
-  return Boolean(p && p.verified && p.evidenceReview==='sufficient' && p.materialRisk===false);
+  // For this first CLOSED 500-item Goal only: full per-item evidenced coverage plus a trustworthy review.
+  // Not a general mastery probability, permanent-memory guarantee or zero-error rule.
+  return Boolean(p && [p.base,p.gained,p.strengthen,p.unknown].every(n=>Number.isInteger(n)&&n>=0)
+    && p.base+p.gained+p.strengthen+p.unknown===GOAL_SIZE
+    && p.base+p.gained===GOAL_SIZE && p.strengthen===0 && p.unknown===0
+    && p.verified===true && p.evidenceReview==='sufficient' && p.materialRisk===false);
 }
 export function goalMessage(key) {
   const p=progressFor(key);
   if(canDeclareGoal(p)) return {
     title:'这一阶段的学习目标已达成',
-    detail:'模拟的全范围回顾已综合独立词义理解、跨时间保持、新句理解与阶段测评。虽然有少量偶发波动和局部待复核，仍未发现足以改变整体结论的重大薄弱项或证据缺口。',
-    next:'已有充分依据确认本阶段目标；可以保持复习，是否开始新目标由你确认。'
+    detail:'模拟的 500 个确认学习重点均有充分、可信的达标证据，覆盖书面词义理解、适当简单句理解，并参考跨时间独立表现和阶段测评。100% 表示全部项目达标，不表示以后每次答题零失误或永久不会遗忘。',
+    next:'当前封闭范围已逐项达标。可以做保持复习；是否开始新目标，由你确认。'
   };
   if(key==='gap') return {
     title:'表现不错，但还不能宣布达成',
@@ -33,9 +37,9 @@ export function goalMessage(key) {
     next:'接下来优先补足证据，而不是机械重新学习全部内容。'
   };
   if(key==='near') return {
-    title:'正在接近目标，还需要一点巩固',
-    detail:'一些词的书面词义或新句理解还不稳定，也有尚未观察充分的部分。已经取得的进步仍然有效。',
-    next:'先解决薄弱联系，并在适当阶段做独立复核。'
+    title:'接近目标，还差最后 1 项',
+    detail:'已有 499/500 项可信达标，但仍有 1 个学习重点未达到当前要求。再接近，也不能提前宣布整个目标完成。',
+    next:'先巩固最后 1 项，待有充分独立证据后再确认整个目标。'
   };
   return {
     title:'目标正在推进中',

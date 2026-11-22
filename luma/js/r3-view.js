@@ -48,7 +48,7 @@ function progressGraphic(s,compact=false) {
     segments.map(([id,label,value])=>'<span class="r3-bar-'+id+'" title="'+label+' '+value+'" style="width:'+(value/5)+'%"></span>').join('')+
     '</div>'+
     '<div class="r3-legend">'+segments.map(([id,label,value])=>'<div class="r3-legend-item"><i class="r3-dot-'+id+'"></i><span>'+label+'</span><strong>'+value+'</strong></div>').join('')+'</div>'+
-    '<p class="r3-progress-interpret">'+(canDeclareGoal(p)?'整体目标已可信达成；少量波动仍可复核。':'还有 '+p.remaining+' 个学习重点需要巩固或进一步观察。')+'</p>'+ 
+    '<p class="r3-progress-interpret">'+'<strong>'+((p.reached/500*100)%1===0?(p.reached/500*100).toFixed(0):(p.reached/500*100).toFixed(1))+'% 达标</strong> · '+(canDeclareGoal(p)?'500/500 项均有可信达标证据，本阶段目标已完成。':p.remaining===0?'尚需确认逐项证据，不能仅凭数字宣布完成。':'还有 '+p.remaining+' 项尚未达标或证据不足。')+'</p>'+ 
     '<p class="r3-muted r3-progress-foot">'+e(p.note)+' <strong>预设的全范围模拟历史，非实测数据。</strong></p>'+
     '</div>';
 }
@@ -165,16 +165,28 @@ function feedbackCard(s,task) {
  const ev=s.session.lastAttempt||{},good=ev.result==='independent-correct';
  const supported=ev.result==='supported-correct';
  const uncertain=ev.result==='unverified';
- const heading=good?'这次你独立完成了':supported?'得到帮助后完成了':uncertain?'这次回答暂时不能确定':'我们已经看到还要练的地方';
- const detail=good?'这次表现值得保留，但还需要适当间隔和新句子来确认是否稳定。':
-   supported?'在解释、选项或已见答案的帮助下完成了当前练习；它不会冒充此前就会。':
-   uncertain?'开放回答可能有不同的合理表达。演示规则不能可靠评价时，不会把它直接判成不会。':
-   '这次尝试还没有独立完成。先理解正确联系，后面会安排适合的巩固。';
- return '<div class="r3-feedback"><span class="r3-feedback-symbol">'+(good?'✓':supported?'◌':uncertain?'?':'↗')+'</span>'+
-   '<h1>'+heading+'</h1><p>'+detail+'</p>'+
-   '<div class="r3-feedback-content"><span>这次学习重点</span><strong class="r3-speech-line">'+e(task.word.text)+audioButton('word',task.word.text)+' · '+e(task.word.sense)+'</strong>'+
-   '<p>'+e(task.word.note)+'</p><p class="r3-speech-line">'+e(task.type==='context'?task.stimulus:task.word.sentence)+audioButton('sentence',task.type==='context'?task.stimulus:task.word.sentence)+'</p>'+ 
-   (s.session?.micStatus?'<p class="r3-status" role="status">'+e(s.session.micStatus)+'</p>':'')+'</div>'+
+ const kind=good?'independent':supported?'supported':uncertain?'uncertain':'pending';
+ const status=good?'独立作答':supported?'得到帮助':uncertain?'有待确认':'继续学习';
+ const symbol=good||supported?'✓':uncertain?'?':'↗';
+ const heading=good?'这次独立答对了':supported?'在帮助下练对了':uncertain?'这次还不能确定':'这次还没有独立完成';
+ const detail=good?'这次独立作答正确，但还需要以后换材料、隔一段时间再确认。':
+   supported?'有解释或选项帮助，这次练对了；以后还需要独立观察。':
+   uncertain?'可能有其他合理表达，演示暂时无法准确判断，不会记作你不会。':
+   '先理解这个词与句子的联系，后面再找机会尝试。';
+ const word=task.word;
+ const example=task.type==='context'?task.stimulus:word.sentence;
+ return '<div class="r3-feedback r3-feedback-'+kind+'">'+
+   '<div class="r3-feedback-result"><span class="r3-feedback-status"><span aria-hidden="true">'+symbol+'</span>'+status+'</span>'+
+   '<h1>'+heading+'</h1><p>'+detail+'</p></div>'+
+   '<section class="r3-feedback-content" aria-label="本次学习重点">'+
+     '<span class="r3-feedback-label">这次学习重点</span>'+
+     '<div class="r3-feedback-vocab"><div class="r3-feedback-word-line"><strong class="r3-feedback-word">'+e(word.text)+'</strong>'+audioButton('word',word.text)+'</div>'+
+     '<strong class="r3-feedback-meaning">'+e(word.sense)+'</strong></div>'+
+     '<p class="r3-feedback-note">'+e(word.note)+'</p>'+
+     '<div class="r3-feedback-example"><span class="r3-feedback-example-label">放在句子里</span>'+
+     '<div class="r3-feedback-example-line">'+e(example)+audioButton('sentence',example)+'</div></div>'+
+     (s.session?.micStatus?'<p class="r3-status" role="status">'+e(s.session.micStatus)+'</p>':'')+
+   '</section>'+
    '<div class="r3-actions">'+btn('继续下一项','next','primary')+
    (uncertain?btn('换成选项练习','retry-options','outline'):'')+
    btn('再看一遍解释','learn','text')+'</div></div>';
@@ -189,7 +201,7 @@ export function focus(s) {
  return '<div class="r3-focus"><header class="r3-focus-header">'+brand+
    '<div><strong>'+title+'</strong><span>第 '+(f.idx+1)+' 项 / '+f.items.length+' 项 · 可随时暂停</span></div>'+
    btn(assessment?'退出测评':'暂停并返回','pause','outline')+'</header>'+
-   '<main class="r3-focus-body"><div class="r3-focus-card">'+body+'</div></main>'+
+   '<main class="r3-focus-body"><div class="r3-focus-card'+(f.stage==='feedback'?' r3-focus-card-feedback':'')+'">'+body+'</div></main>'+
    '<footer class="r3-focus-footer"><div class="r3-step-bar" aria-hidden="true"><span style="width:'+Math.round(f.idx/f.items.length*100)+'%"></span></div>'+
    '<span>'+ (assessment?'测评结果只用于模拟校准，不等于整体 500 词已被测完':'先理解，再尝试；没有时间或题量压力')+'</span>'+
    (assessment?'':btn('提前结束本次学习','end-session','text'))+'</footer></div>';
@@ -240,9 +252,9 @@ export function goalReview(s) {
    '<div class="r3-review-mark">'+(achieved?'✓':'↗')+'</div><h1>'+m.title+'</h1><p class="r3-lead">'+m.detail+'</p>'+
    '<div class="r3-panel r3-review-details">'+progressGraphic(s,true)+
    '<div class="r3-divider"></div><h3>'+ (achieved?'为什么这次可以确认达成':'为什么现在还不能宣布达成')+'</h3>'+
-   '<p>'+ (achieved?'模拟情境假设：目标范围的独立词义辨认、新句理解、跨时间复检和阶段独立测评已有充分整体证据。图中少量待巩固及待复核属于有限波动，并非足以推翻结论的重大缺口；不要求零失误。':
+   '<p>'+ (achieved?'模拟情境假设：确认范围内全部 500 项学习重点均已逐项达到约定的书面词义与简单句理解表现，各项证据充分可信，且没有未达标或证据不足项。100% 达标不意味着未来每次作答零失误，必要时仍可以复核与保持学习。':
        '仍有需要巩固或尚无足够证据的内容。已掌握和新增进步不会因此抹除；未观察也不被解释为不会。')+'</p>'+
-   '<p class="r3-muted">这只针对约 500 词的指定书面词义与简单句目标，不表示英语全部能力达标，也不保证永久记得。</p></div>'+
+   '<p class="r3-muted">仅针对当前首个约 500 词封闭 Goal 的约定表现；不代表所有义项或其他英语能力已掌握，也不保证永久记得。</p></div>'+
    '<div class="r3-actions">'+btn(achieved?'安排保持复习':'继续解决下一步','start-daily','primary')+
    btn('返回整体进展','nav-progress','outline')+'</div>'+
    (achieved?'<p class="r3-muted">如需开始新的学习范围，请先确认新的目标；系统不会自动扩大当前范围。</p>':'')+
