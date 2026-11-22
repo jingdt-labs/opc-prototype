@@ -125,7 +125,8 @@ function learnCard(s,task) {
    '<div class="r3-meaning"><span>这次先记住</span><strong>'+e(w.sense)+'</strong><p>'+e(w.note)+'</p></div>'+
    '<div class="r3-sentence-box"><span>放在句子里</span><div class="r3-sentence">'+e(w.sentence)+'</div>'+
    '<p>'+e(w.guide?.translation||w.sentenceMeaning)+'</p>'+
-   '<div class="r3-sentence-actions">'+btn('听英文示范','pronounce','text')+'</div></div>'+
+   '<div class="r3-sentence-actions">'+btn('听英文示范','pronounce','text')+'</div>'+
+   (s.session?.micStatus?'<p class="r3-status" role="status">'+e(s.session.micStatus)+'</p>':'')+'</div>'+
    '<div class="r3-tip"><strong>再理解一点</strong><p>'+e(w.contrast||'先抓住当前词义，其他用法可以以后再补。')+'</p></div>'+
    (guide&&guide.sections?.length?'<details class="r3-extra"><summary>想了解更多例子和区别</summary>'+
      guide.sections.slice(0,2).map(sec=>'<div><b>'+e(sec.title)+'</b><p>'+sec.lines.map(line=>e(line.join('：'))).join('；')+'</p></div>').join('')+'</details>':'')+
@@ -143,7 +144,6 @@ function questionCard(s,task) {
  return '<div class="r3-question"><span class="r3-eyebrow">'+(assessment?'独立检查':isMeaning?'认识词义':'理解简单句')+'</span>'+
     '<h2>'+title+'</h2>'+
     '<div class="r3-stimulus '+(isMeaning?'r3-word':'r3-context')+'">'+e(task.stimulus)+'</div>'+
-    (isMeaning?'<div class="r3-pronounce">'+btn('听单词读音','pronounce','text')+'</div>':'')+
     input+
     (f.micStatus?'<p class="r3-status" role="status">'+e(f.micStatus)+'</p>':'')+
     (f.transcriptPending?'<p class="r3-status">请核对上面的识别文字，确认无误后再提交；识别出错不会直接判你不会。</p>':'')+

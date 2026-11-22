@@ -121,3 +121,13 @@ test('assessment and achieved outcomes have separate learner views',()=>{
  const intro=renderPage(state({view:'assessment-intro'}));
  assert.match(intro,/独立检查/);
 });
+
+test('independent assessment does not expose an auditory clue before answering',()=>{
+ const html=renderPage(state({view:'focus',session:{
+  type:'assessment',items:assessmentQueue(),idx:0,stage:'ask',mode:'choice',
+  draft:'',micStatus:'',finished:false
+ }}));
+ assert.doesNotMatch(html,/data-action="pronounce"/);
+ assert.doesNotMatch(html,/data-action="learn"/);
+ assert.doesNotMatch(html,/data-action="show-options"/);
+});
