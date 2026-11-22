@@ -79,14 +79,15 @@ export function home(s) {
   const title=running?(s.session.type==='assessment'?'上次测评暂停了，继续就好':'上次学到一半，继续就好'):s.visits>0?'接着上次的进展继续':'先从几个常见词开始';
   return shell(s,'home',
     scenarioControls(s)+'<section class="r3-home-top"><div class="r3-home-grid">'+
+    '<div class="r3-hero-side r3-panel">'+progressGraphic(s,true)+
+    '<div class="r3-progress-actions">'+btn('看详细进展','nav-progress','text')+'</div></div>'+
     '<div class="r3-hero r3-panel"><span class="r3-eyebrow">现在适合做的事</span>'+
     '<h1>'+title+'</h1>'+
     '<p>'+ (running?'你的上次学习进度已经保留，可以接着做。':s.scenario==='achieved'?'当前阶段已模拟达成。可以选择保持复习，不会自动扩大目标。':'Luma 会把认识的词、需要帮助的词和简单句理解串在一起。无需自己安排词表。')+'</p>'+
     '<div class="r3-actions">'+btn(running?(s.session.type==='assessment'?'继续上次测评':'继续上次学习'):s.scenario==='achieved'?'做一次保持复习':'开始本次学习',running?'resume':'start-daily','primary')+
     (running?btn('结束这次学习','end-session','outline'):'')+'</div>'+
     '<span class="r3-hero-sub">建议 '+s.duration+' 分钟 · 随时可暂停或提前结束</span></div>'+
-    '<div class="r3-hero-side">'+progressGraphic(s,true)+
-    '<div class="r3-inline-link">'+btn('看详细进展','nav-progress','text')+'</div></div></div></section>'+
+    '</div></section>'+
     '<section class="r3-home-bottom"><div class="r3-section-heading"><div><span class="r3-eyebrow">接下来</span><h2>值得关注的学习重点</h2></div></div>'+
     '<div class="r3-next-grid"><div class="r3-panel r3-next"><span class="r3-next-icon">↗</span><h3>学习与巩固自然接续</h3><p>'+e(s.visits?suggestedAction(s.events):s.scenario==='start'?'先用少量词了解起点；不认识时会先教你。':'先巩固不稳定的内容，再逐步了解未观察的词。')+'</p>'+
     btn('去学习','start-daily','text')+'</div>'+
@@ -132,7 +133,7 @@ function learnCard(s,task) {
    '<div class="r3-sentence-box"><span>放在句子里</span><div class="r3-sentence r3-speech-line">'+e(w.sentence)+audioButton('sentence',w.sentence)+'</div>'+
    '<p>'+e(w.guide?.translation||w.sentenceMeaning)+'</p>'+
    ''+
-   (s.session?.micStatus?'<p class="r3-status" role="status">'+e(s.session.micStatus)+'</p>':'')+'</div>'+
+   (s.session?.statusMessage?'<p class="r3-status" role="status">'+e(s.session.statusMessage)+'</p>':'')+'</div>'+
    '<div class="r3-tip"><strong>再理解一点</strong><p>'+e(w.contrast||'先抓住当前词义，其他用法可以以后再补。')+'</p></div>'+
    (guide&&guide.sections?.length?'<details class="r3-extra"><summary>想了解更多例子和区别</summary>'+
      guide.sections.slice(0,2).map(sec=>'<div><b>'+e(sec.title)+'</b><p>'+sec.lines.map(line=>e(line.join('：'))).join('；')+'</p></div>').join('')+'</details>':'')+
@@ -141,18 +142,17 @@ function learnCard(s,task) {
 }
 function questionCard(s,task) {
  const f=s.session, assessment=f.type==='assessment', isMeaning=task.type==='meaning';
- const title=isMeaning?'这个词，你知道是什么意思吗？':'读一读，选出最符合句意的理解';
+ const title=isMeaning?(f.mode==='recall'?'试着写出这个词的中文意思':'选择这个词的中文意思'):'读一读，选出最符合句意的理解';
  let input='';
  if(f.mode==='recall') input='<div class="r3-input-row"><label class="r3-input-label" for="r3-answer">用中文表达它的意思</label>'+
-   '<div class="r3-answer-wrap"><input id="r3-answer" type="text" maxlength="80" autocomplete="off" placeholder="想到什么就写什么…" value="'+e(f.draft)+'" />'+btn('语音回答','voice','outline')+'</div>'+
-   '<p class="r3-muted">可以用中文说或写，不是在考英语发音。</p></div>';
+   '<div class="r3-answer-wrap"><input id="r3-answer" type="text" maxlength="80" autocomplete="off" placeholder="想到什么就写什么…" value="'+e(f.draft)+'" /></div>'+
+   '<p class="r3-muted">先试着自己回忆；想不起来时，可以看看选项。</p></div>';
  else input=options(task);
- return '<div class="r3-question"><span class="r3-eyebrow">'+(assessment?'独立检查':isMeaning?'认识词义':'理解简单句')+'</span>'+
+ return '<div class="r3-question"><span class="r3-eyebrow">'+(assessment?'独立检查':isMeaning?(f.mode==='recall'?'主动提取词义':'选项辨认词义'):'理解简单句')+'</span>'+
     '<h2>'+title+'</h2>'+
     '<div class="r3-stimulus '+(isMeaning?'r3-word':'r3-context')+'"><span class="r3-stimulus-line">'+e(task.stimulus)+(!assessment?audioButton(isMeaning?'word':'sentence',task.stimulus):'')+'</span></div>'+
     input+
-    (f.micStatus?'<p class="r3-status" role="status">'+e(f.micStatus)+'</p>':'')+
-    (f.transcriptPending?'<p class="r3-status">请核对上面的识别文字，确认无误后再提交；识别出错不会直接判你不会。</p>':'')+
+    (f.statusMessage?'<p class="r3-status" role="status">'+e(f.statusMessage)+'</p>':'')+
     '<div class="r3-question-actions">'+
     (f.mode==='recall'?btn('提交回答','submit','primary'):'')+
     btn('我不知道','unknown','quiet')+
@@ -164,12 +164,14 @@ function questionCard(s,task) {
 function feedbackCard(s,task) {
  const ev=s.session.lastAttempt||{},good=ev.result==='independent-correct';
  const supported=ev.result==='supported-correct';
+ const recognized=good&&ev.answerMode==='choice';
  const uncertain=ev.result==='unverified';
  const kind=good?'independent':supported?'supported':uncertain?'uncertain':'pending';
- const status=good?'独立作答':supported?'得到帮助':uncertain?'有待确认':'继续学习';
+ const status=recognized?'独立辨认':good?'独立作答':supported?'得到帮助':uncertain?'有待确认':'继续学习';
  const symbol=good||supported?'✓':uncertain?'?':'↗';
- const heading=good?'这次独立答对了':supported?'在帮助下练对了':uncertain?'这次还不能确定':'这次还没有独立完成';
- const detail=good?'这次独立作答正确，但还需要以后换材料、隔一段时间再确认。':
+ const heading=recognized?'这次认对了词义':good?'这次独立答对了':supported?'在帮助下练对了':uncertain?'这次还不能确定':'这次还没有独立完成';
+ const detail=recognized?'这次在选项中独立辨认正确，不等于无选项主动提取；后面还会在不同条件下观察。':
+   good?'这次独立作答正确，但还需要以后换材料、隔一段时间再确认。':
    supported?'有解释或选项帮助，这次练对了；以后还需要独立观察。':
    uncertain?'可能有其他合理表达，演示暂时无法准确判断，不会记作你不会。':
    '先理解这个词与句子的联系，后面再找机会尝试。';
@@ -185,7 +187,7 @@ function feedbackCard(s,task) {
      '<p class="r3-feedback-note">'+e(word.note)+'</p>'+
      '<div class="r3-feedback-example"><span class="r3-feedback-example-label">放在句子里</span>'+
      '<div class="r3-feedback-example-line">'+e(example)+audioButton('sentence',example)+'</div></div>'+
-     (s.session?.micStatus?'<p class="r3-status" role="status">'+e(s.session.micStatus)+'</p>':'')+
+     (s.session?.statusMessage?'<p class="r3-status" role="status">'+e(s.session.statusMessage)+'</p>':'')+
    '</section>'+
    '<div class="r3-actions">'+btn('继续下一项','next','primary')+
    (uncertain?btn('换成选项练习','retry-options','outline'):'')+

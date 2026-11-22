@@ -49,13 +49,13 @@ function newSession(type){
    id:'r3-'+state.serial+'-'+type, type, items:queue,
    idx:0, stage:'ask', mode:initialMode(queue[0],type), draft:'',
    help:false,exposed:false,paused:false,finished:false,
-   micStatus:'',transcriptPending:false,inputMode:'typed',lastAttempt:null,
+   statusMessage:'',lastAttempt:null,
    startedAt:new Date().toISOString()
   };
   state.view='focus';
  },true);
 }
-function initialMode(item,type){return type==='assessment'||item.type==='context'?'choice':'recall';}
+function initialMode(item,type){return type==='assessment'||item.type==='context'||item.answerMode==='choice'?'choice':'recall';}
 function activeTask(){
  const s=state.session;
  if(!s||s.finished||!s.items[s.idx])return null;
@@ -81,7 +81,7 @@ function expose(reason='learn'){
 function study(){
  const f=state.session,t=activeTask();
  if(!f||!t||f.type==='assessment')return;
- update(()=>{expose('explanation');f.stage='learn';f.micStatus='';},true);
+ update(()=>{expose('explanation');f.stage='learn';f.statusMessage='';},true);
 }
 function recordResponse(response){
  const f=state.session,t=activeTask();
@@ -94,20 +94,20 @@ function recordResponse(response){
    requestedPerformance:t.type==='meaning'?'written-meaning':'simple-sentence-comprehension',
    response:response===null?null:String(response).slice(0,100),
    result,choiceShown:f.mode==='choice',supported,answerVisibleBefore:f.exposed,
-   inputMode:f.inputMode, transcriptConfirmed:f.inputMode==='speech',
+   inputMode:f.mode==='choice'?'choice':'typed', answerMode:f.mode,
    evaluation:result==='unverified'?'limited-demo-cannot-grade-open-answer':'bounded-example-fixture',
    assessment:f.type==='assessment'
   };
   appendEvent(event);
   f.lastAttempt=event;
-  f.draft=''; f.transcriptPending=false;
+  f.draft='';
   if(f.type==='assessment'){
     advance(true);
   } else if(result==='unknown'||(result==='incorrect'&&!f.exposed)){
     expose(result==='unknown'?'unknown-to-learn':'incorrect-to-learn');
-    f.stage='learn';f.micStatus='';
+    f.stage='learn';f.statusMessage='';
   } else {
-    f.stage='feedback';f.micStatus='';
+    f.stage='feedback';f.statusMessage='';
   }
  },true);
 }
@@ -121,8 +121,8 @@ function advance(insideUpdate=false){
     return;
   }
   f.stage='ask';f.mode=initialMode(f.items[f.idx],f.type);
-  f.help=false;f.exposed=false;f.draft='';f.micStatus='';
-  f.transcriptPending=false;f.inputMode='typed';f.lastAttempt=null;
+  f.help=false;f.exposed=false;f.draft='';f.statusMessage='';
+  f.lastAttempt=null;
   state.view='focus';
  };
  if(insideUpdate)act();else update(act,true);
@@ -133,41 +133,9 @@ function endSession(){
  if(f.type==='assessment'){update(()=>{f.paused=true;state.view='home';},true);return;}
  update(()=>{f.finished=true;f.paused=false;state.view='session-end';},true);
 }
-function setMicStatus(message){
+function setStatusMessage(message){
  if(!state.session||state.session.finished)return;
- update(()=>{state.session.micStatus=message;},false);
-}
-function voice(){
- const f=state.session;
- if(!f||f.stage!=='ask'||f.mode!=='recall')return;
- const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
- if(!SpeechRecognition){
-  setMicStatus('此浏览器未提供中文语音输入，可直接键入中文或选择“看看选项”。');
-  return;
- }
- let recognition;
- try{
-  recognition=new SpeechRecognition();
-  recognition.lang='zh-CN'; recognition.interimResults=false;
-  recognition.maxAlternatives=1;
-  recognition.onresult=ev=>{
-   const transcript=ev.results?.[0]?.[0]?.transcript||'';
-   if(!transcript)return setMicStatus('没有收到可核对的文字，请改用输入或选项。');
-   if(!state.session||state.session!==f||f.stage!=='ask')return;
-   update(()=>{
-    f.draft=String(transcript).slice(0,80);f.inputMode='speech';
-    f.transcriptPending=true;
-    f.micStatus='已转成文字。请核对后再提交；如果识别有误，可以直接修改。';
-   });
-  };
-  recognition.onerror=()=>{
-   if(state.session===f)setMicStatus('这次语音识别未完成，请手动输入或换用选项；不记为答错。');
-  };
-  recognition.start();
-  setMicStatus('正在听你的中文回答…');
- }catch{
-  setMicStatus('语音功能暂时无法使用，请手动输入或选择选项；不会据此判断学习情况。');
- }
+ update(()=>{state.session.statusMessage=message;},false);
 }
 let speechSerial=0;
 function pronounce(el){
@@ -181,7 +149,7 @@ function pronounce(el){
    stage==='feedback'&&t.type==='meaning'?t.word.sentence:t.stimulus;
  if(!utteranceText)return;
  if(!('speechSynthesis' in window)||!('SpeechSynthesisUtterance' in window)){
-  setMicStatus('发音暂时不可用，可以继续看文字学习。');
+  setStatusMessage('发音暂时不可用，可以继续看文字学习。');
   return;
  }
  const token=++speechSerial;
@@ -198,14 +166,14 @@ function pronounce(el){
      appendEvent({kind:'audio-support',wordId:t.wordId,type:t.type,
        materialId:t.materialId,spokenText:utteranceText,performance:'no-assessment-claim'});
     }
-    f.micStatus=kind==='word'?'正在朗读单词…':'正在朗读例句…';
+    f.statusMessage=kind==='word'?'正在朗读单词…':'正在朗读例句…';
    });
   };
-  u.onend=()=>{if(stillHere())setMicStatus('朗读已结束，可以继续学习。');};
-  u.onerror=()=>{if(stillHere())setMicStatus('这次朗读没有成功，请继续用文字学习。');};
+  u.onend=()=>{if(stillHere())setStatusMessage('朗读已结束，可以继续学习。');};
+  u.onerror=()=>{if(stillHere())setStatusMessage('这次朗读没有成功，请继续用文字学习。');};
   window.speechSynthesis.speak(u);
  }catch{
-  if(stillHere())setMicStatus('朗读暂时不可用，不影响当前学习。');
+  if(stillHere())setStatusMessage('朗读暂时不可用，不影响当前学习。');
  }
 }
 function handleAction(action,el){
@@ -227,9 +195,14 @@ function handleAction(action,el){
  case 'end-session':endSession();break;
  case 'finish-session':endSession();break;
  case 'show-options':
-   if(f&&f.stage==='ask'&&f.type==='daily')update(()=>{
-    f.mode='choice';f.help=true;
-    f.micStatus='这里提供了选项，这次会记为得到帮助后的辨认。';
+   if(f&&f.stage==='ask'&&f.type==='daily'&&f.mode==='recall')update(()=>{
+    const t=activeTask();
+    appendEvent({kind:'support-request',reason:'switch-to-options',
+      wordId:t.wordId,type:t.type,materialId:t.materialId,
+      priorAnswerDraft:f.draft||null,priorAnswerSubmitted:false,
+      answerVisible:false,performance:'no-performance-claim'});
+    f.mode='choice';f.help=true;f.draft='';
+    f.statusMessage='已切换为选项辨认；本次答案会保留求助条件。';
    });break;
  case 'learn':study();break;
  case 'unknown':recordResponse(null);break;
@@ -237,22 +210,21 @@ function handleAction(action,el){
    if(el&&el.dataset.answer!==undefined)recordResponse(el.dataset.answer);break;
  case 'submit':
    if(f&&f.stage==='ask'){
-    if(!String(f.draft||'').trim()){setMicStatus('先写下你的想法，或者直接选择“我不知道”。');break;}
+    if(!String(f.draft||'').trim()){setStatusMessage('先写下你的想法，或者直接选择“我不知道”。');break;}
     recordResponse(f.draft);
    }break;
  case 'study-after-learn':
    if(f&&f.stage==='learn')update(()=>{
     f.stage='ask';f.mode='choice';f.help=true;f.draft='';
-    f.micStatus='先看过讲解，接下来是巩固练习。';
+    f.statusMessage='先看过讲解，接下来是巩固练习。';
    },true);break;
  case 'retry-options':
    if(f&&f.stage==='feedback'&&f.type==='daily')update(()=>{
     expose('feedback-answer-visible');
     f.stage='ask';f.mode='choice';f.help=true;f.draft='';
-    f.micStatus='这次换成选项来巩固，不记为独立主动提取。';
+    f.statusMessage='这次换成选项来巩固，不记为独立主动提取。';
    },true);break;
  case 'next':if(f&&f.stage==='feedback')advance();break;
- case 'voice':voice();break;
  case 'pronounce':pronounce(el);break;
  case 'reset-demo':
    if(window.confirm('清除这台浏览器的 R3 演示记录并回到首次体验？')){
@@ -270,8 +242,6 @@ document.addEventListener('click',event=>{
 document.addEventListener('input',event=>{
  if(event.target.id!=='r3-answer'||!state.session||state.session.stage!=='ask')return;
  state.session.draft=event.target.value.slice(0,80);
- state.session.transcriptPending=false;
- state.session.inputMode='typed';
  save();
 });
 document.addEventListener('change',event=>{

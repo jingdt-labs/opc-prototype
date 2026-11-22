@@ -100,7 +100,7 @@ export function evaluateResponse(task, response, mode, supported=false) {
 }
 export function startQueue(events=[], visit=0, scenario='start') {
   const plans={
-    start:['short:meaning','because:meaning','borrow:meaning','borrow:context','sometimes:context'],
+    start:['short:meaning:choice','because:meaning','borrow:meaning','borrow:context','sometimes:context'],
     growing:['because:meaning','borrow:context','sometimes:meaning','through:context','short:context'],
     review:['because:meaning','sometimes:context','borrow:context','enough:meaning','through:context'],
     near:['during:context','although:context','instead:meaning','borrow:context','decide:context'],
@@ -123,8 +123,9 @@ export function startQueue(events=[], visit=0, scenario='start') {
   return rotated.map(parseItem);
 }
 function parseItem(item) {
-  const [wordId,type]=item.split(':');
-  return {wordId,type};
+  const [wordId,type,answerMode]=item.split(':');
+  // Explicit sample UI variation; actual task selection belongs to the Learning Runtime.
+  return {wordId,type,...(answerMode?{answerMode}:{})};
 }
 // Small, contrasting reference observations. They are authored fiction, not a recorded learner baseline.
 export const ASSESSMENT_REFERENCE = {

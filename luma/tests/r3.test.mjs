@@ -123,9 +123,9 @@ test('focus has active help, meaning, pause and continuation actions',()=>{
  const q=startQueue([],0,'start');
  const html=renderPage(state({view:'focus',session:{
   type:'daily',items:q,idx:0,stage:'ask',mode:'recall',draft:'',
-  micStatus:'',finished:false
+  statusMessage:'',finished:false
  }}));
- for(const a of ['data-action="voice"','data-action="show-options"','data-action="unknown"',
+ for(const a of ['data-action="show-options"','data-action="unknown"',
   'data-action="learn"','data-action="pause"','data-action="submit"']){
   assert.ok(html.includes(a),a);
  }
@@ -143,7 +143,7 @@ test('assessment and achieved outcomes have separate learner views',()=>{
 test('independent assessment does not expose an auditory clue before answering',()=>{
  const html=renderPage(state({view:'focus',session:{
   type:'assessment',items:assessmentQueue(),idx:0,stage:'ask',mode:'choice',
-  draft:'',micStatus:'',finished:false
+  draft:'',statusMessage:'',finished:false
  }}));
  assert.doesNotMatch(html,/data-action="pronounce"/);
  assert.doesNotMatch(html,/data-action="learn"/);
@@ -167,7 +167,7 @@ test('review switcher shows meaningful nonzero progress and matches on home, det
  assert.match(newStart,/尚待了解/);
 });
 test('word and sentence audio icons appear inline in Learn, practice and feedback, not assessment',()=>{
- const base={type:'daily',items:assessmentQueue(),idx:0,draft:'',mode:'choice',finished:false,micStatus:''};
+ const base={type:'daily',items:assessmentQueue(),idx:0,draft:'',mode:'choice',finished:false,statusMessage:''};
  const learn=renderPage(state({view:'focus',session:{...base,stage:'learn'}}));
  assert.match(learn,/data-speech-kind="word"/);
  assert.match(learn,/data-speech-kind="sentence"/);
@@ -208,7 +208,7 @@ test('Goal page offers only supported time preference, no misleading re-confirm 
 
 test('supported feedback uses clear result hierarchy and separate word, meaning, example',()=>{
  const session={type:'daily',items:assessmentQueue(),idx:0,stage:'feedback',mode:'choice',
-  micStatus:'',finished:false,lastAttempt:{result:'supported-correct'}};
+  statusMessage:'',finished:false,lastAttempt:{result:'supported-correct'}};
  const html=renderPage(state({view:'focus',session}));
  assert.match(html,/在帮助下练对了/);
  assert.match(html,/以后还需要独立观察/);
@@ -233,7 +233,7 @@ test('all four feedback types use the same hierarchy with non-shaming titles',()
  ];
  for(const [result,heading,tag] of scenarios){
   const html=renderPage(state({view:'focus',session:{type:'daily',items:assessmentQueue(),idx:0,
-   stage:'feedback',mode:'choice',micStatus:'',finished:false,lastAttempt:{result}}}));
+   stage:'feedback',mode:'choice',statusMessage:'',finished:false,lastAttempt:{result}}}));
   assert.match(html,new RegExp(heading));
   assert.match(html,new RegExp(tag));
   assert.match(html,/r3-feedback-content/);
@@ -264,4 +264,68 @@ test('goal review states 100 percent coverage, not perfect future answer accurac
  assert.match(html,/全部 500 项学习重点均已逐项达到/);
  assert.match(html,/不意味着未来每次作答零失误/);
  assert.doesNotMatch(html,/少量待巩固|少量待复核|有限波动/);
+});
+
+test('recognition is a first-class choice-only meaning task',()=>{
+ const items=startQueue([],0,'start');
+ assert.equal(items[0].wordId,'short');
+ assert.equal(items[0].answerMode,'choice');
+ const html=renderPage(state({view:'focus',session:{
+  type:'daily',items,idx:0,stage:'ask',mode:'choice',
+  draft:'',statusMessage:'',finished:false
+ }}));
+ assert.match(html,/选项辨认词义/);
+ assert.match(html,/data-action="choose"/);
+ assert.match(html,/选择这个词的中文意思/);
+ assert.doesNotMatch(html,/id="r3-answer"|data-action="submit"|data-action="show-options"/);
+ assert.doesNotMatch(html,/data-action="voice"|语音回答|SpeechRecognition/);
+ assert.match(html,/data-action="unknown"|data-action="learn"/);
+});
+test('active recall is text-only until assistance switches to options',()=>{
+ const items=startQueue([],0,'start');
+ const html=renderPage(state({view:'focus',session:{
+  type:'daily',items,idx:1,stage:'ask',mode:'recall',
+  draft:'',statusMessage:'',finished:false
+ }}));
+ assert.match(html,/主动提取词义/);
+ assert.match(html,/id="r3-answer"/);
+ assert.match(html,/data-action="submit"/);
+ assert.match(html,/data-action="show-options"/);
+ assert.match(html,/data-action="unknown"|data-action="learn"/);
+ assert.doesNotMatch(html,/data-action="choose"|class="r3-options"/);
+ assert.doesNotMatch(html,/data-action="voice"|语音回答|语音识别/);
+ const after=renderPage(state({view:'focus',session:{
+  type:'daily',items,idx:1,stage:'ask',mode:'choice',help:true,
+  draft:'',statusMessage:'已切换为选项辨认；本次答案会保留求助条件。',finished:false
+ }}));
+ assert.match(after,/data-action="choose"/);
+ assert.doesNotMatch(after,/id="r3-answer"|data-action="submit"|data-action="show-options"/);
+ assert.match(after,/保留求助条件/);
+ assert.equal(evaluateResponse(taskFor('because','meaning'),'因为','choice',true),'supported-correct');
+});
+test('home swaps cards, contains detail action inside progress panel, and retains one coherent progress',()=>{
+ for(const scenario of ['start','growing','review','near','achieved']){
+  const html=renderPage(state({scenario}));
+  const left=html.indexOf('<div class="r3-hero-side r3-panel">');
+  const detail=html.indexOf('data-action="nav-progress"');
+  const hero=html.indexOf('<div class="r3-hero r3-panel">');
+  assert.ok(left>=0&&left<hero,scenario+': progress should precede task');
+  const detailsButton=html.indexOf('<div class="r3-progress-actions">');
+  assert.ok(detailsButton>left&&detailsButton<hero,scenario+': detail button inside progress card');
+  assert.match(html,/r3-progress-actions/);
+  assert.doesNotMatch(html,/r3-inline-link/);
+  assert.match(html,/r3-home-grid/);
+ }
+});
+
+test('direct recognition feedback is not mislabelled as active recall',()=>{
+ const html=renderPage(state({view:'focus',session:{
+  type:'daily',items:startQueue([],0,'start'),idx:0,stage:'feedback',mode:'choice',
+  draft:'',statusMessage:'',finished:false,
+  lastAttempt:{result:'independent-correct',answerMode:'choice',choiceShown:true,supported:false}
+ }}));
+ assert.match(html,/这次认对了词义/);
+ assert.match(html,/独立辨认/);
+ assert.match(html,/不等于无选项主动提取/);
+ assert.doesNotMatch(html,/在帮助下练对了/);
 });
