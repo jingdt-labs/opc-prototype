@@ -169,21 +169,43 @@ function voice(){
   setMicStatus('语音功能暂时无法使用，请手动输入或选择选项；不会据此判断学习情况。');
  }
 }
-function pronounce(){
- const t=activeTask();
- if(!t)return;
+let speechSerial=0;
+function pronounce(el){
+ const f=state.session,t=activeTask();
+ if(!f||!t||f.type==='assessment')return; // Independent assessments cannot receive speech support.
+ const kind=el?.dataset?.speechKind;
+ if(kind!=='word'&&kind!=='sentence')return;
+ const stage=f.stage, idx=f.idx;
+ const utteranceText=kind==='word'?t.word.text:
+   stage==='learn'?t.word.sentence:
+   stage==='feedback'&&t.type==='meaning'?t.word.sentence:t.stimulus;
+ if(!utteranceText)return;
  if(!('speechSynthesis' in window)||!('SpeechSynthesisUtterance' in window)){
-  setMicStatus('当前浏览器无法朗读。你仍可以阅读文字解释，声音不可用不影响词义判断。');
+  setMicStatus('发音暂时不可用，可以继续看文字学习。');
   return;
  }
+ const token=++speechSerial;
+ const stillHere=()=>speechSerial===token&&state.session===f&&f.idx===idx&&f.stage===stage;
  try{
   window.speechSynthesis.cancel();
-  const u=new SpeechSynthesisUtterance(t.word.text);
+  const u=new SpeechSynthesisUtterance(utteranceText);
   u.lang='en-US';u.rate=.87;
-  u.onerror=()=>setMicStatus('朗读没有成功，可直接阅读词义和例句。');
+  u.onstart=()=>{
+   if(!stillHere())return;
+   update(()=>{
+    if(stage==='ask'){
+     f.help=true; // Audio may cue meaning: never promote this attempt to unsupported evidence.
+     appendEvent({kind:'audio-support',wordId:t.wordId,type:t.type,
+       materialId:t.materialId,spokenText:utteranceText,performance:'no-assessment-claim'});
+    }
+    f.micStatus=kind==='word'?'正在朗读单词…':'正在朗读例句…';
+   });
+  };
+  u.onend=()=>{if(stillHere())setMicStatus('朗读已结束，可以继续学习。');};
+  u.onerror=()=>{if(stillHere())setMicStatus('这次朗读没有成功，请继续用文字学习。');};
   window.speechSynthesis.speak(u);
  }catch{
-  setMicStatus('朗读暂时不可用，可继续阅读学习材料。');
+  if(stillHere())setMicStatus('朗读暂时不可用，不影响当前学习。');
  }
 }
 function handleAction(action,el){
@@ -231,11 +253,7 @@ function handleAction(action,el){
    },true);break;
  case 'next':if(f&&f.stage==='feedback')advance();break;
  case 'voice':voice();break;
- case 'pronounce':pronounce();break;
- case 'request-goal':
-   if(window.confirm('重新确认当前约 500 词的学习目标？原型不会扩展词汇范围，原有演示记录保留。')){
-    update(()=>{state.view='setup';},true);
-   }break;
+ case 'pronounce':pronounce(el);break;
  case 'reset-demo':
    if(window.confirm('清除这台浏览器的 R3 演示记录并回到首次体验？')){
     const next=fresh();Object.keys(state).forEach(k=>delete state[k]);Object.assign(state,next);
@@ -269,12 +287,13 @@ document.addEventListener('change',event=>{
   const choice=event.target.value;
   if(!['start','growing','review','near','gap','achieved'].includes(choice))return;
   if(choice===state.scenario)return;
-  if(!window.confirm('切换模拟学习阶段会清除本地演示作答，并回到首页。继续吗？')){
+  if((state.events.length>0||(state.session&&!state.session.finished)) &&
+      !window.confirm('切换演示阶段将清除当前本地样题记录；这不会变更真实学习目标。继续吗？')){
    render();return;
   }
   update(()=>{
    state.scenario=choice;state.events=[];state.visits=0;state.session=null;
-   state.view='home';
+   if(!['home','progress','goal','goal-review'].includes(state.view))state.view='home';
   },true);
  }
 });

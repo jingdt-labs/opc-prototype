@@ -9,7 +9,7 @@ export const DEMOS = {
   review: {label:'阶段测评后', base:96, gained:202, strengthen:112, unknown:90, note:'阶段测评发现少量句子理解仍不稳定，后续会优先巩固。'},
   near: {label:'接近目标', base:104, gained:349, strengthen:30, unknown:17, note:'已经很接近目标，但少数薄弱联系和证据缺口仍需解决。'},
   gap: {label:'表现良好，证据不足', base:105, gained:380, strengthen:2, unknown:13, note:'已观察到的内容表现不错，仍不能用局部优秀代表完整范围。'},
-  achieved: {label:'目标已达成', base:107, gained:393, strengthen:0, unknown:0, note:'模拟情境：整个范围内的独立识词、适当简单句、跨时间复检及阶段测评已形成充分且可信的综合证据。', verified:true}
+  achieved: {label:'目标已达成', base:107, gained:388, strengthen:3, unknown:2, note:'少量表现波动与局部待复核仍然存在；整体范围的独立词义理解、跨时间保持和新句理解已有充分、可复核证据。', verified:true, evidenceReview:'sufficient', materialRisk:false}
 };
 export function progressFor(key='start') {
   const p=DEMOS[key]||DEMOS.start;
@@ -17,14 +17,15 @@ export function progressFor(key='start') {
     remaining:p.strengthen+p.unknown, status:p.verified?'achieved':p.unknown?'pending':'review'};
 }
 export function canDeclareGoal(p) {
-  return Boolean(p && p.verified && p.base+p.gained===GOAL_SIZE && p.strengthen===0 && p.unknown===0);
+  // This is an authored whole-Goal review verdict, not a universal score or zero-error formula.
+  return Boolean(p && p.verified && p.evidenceReview==='sufficient' && p.materialRisk===false);
 }
 export function goalMessage(key) {
   const p=progressFor(key);
   if(canDeclareGoal(p)) return {
     title:'这一阶段的学习目标已达成',
-    detail:'这不是因为浏览过全部单词，而是模拟的全范围独立识词、跨时间保持、适当简单句理解和阶段测评证据共同支持了目标表现。',
-    next:'可以做轻量保持复习；是否开始下一个目标，由你确认。'
+    detail:'模拟的全范围回顾已综合独立词义理解、跨时间保持、新句理解与阶段测评。虽然有少量偶发波动和局部待复核，仍未发现足以改变整体结论的重大薄弱项或证据缺口。',
+    next:'已有充分依据确认本阶段目标；可以保持复习，是否开始新目标由你确认。'
   };
   if(key==='gap') return {
     title:'表现不错，但还不能宣布达成',
@@ -67,6 +68,11 @@ export const WORDS=[...extra,...sampleWords].map(w=>{
     guide:vocabularyGuides[w.id]||null};
 });
 export const WORD_BY_ID=Object.fromEntries(WORDS.map(w=>[w.id,w]));
+// Meaning-check alternatives differ from the day-to-day practice choices.
+const assessmentChoices={
+  short:['缓慢的','短的','宽阔的','柔软的'],
+  sometimes:['有时','从未','总是','立刻']
+};
 export function taskFor(wordId, type='meaning', assessment=false) {
   const w=WORD_BY_ID[wordId];
   if(!w) throw new Error('Unknown word: '+wordId);
@@ -75,7 +81,7 @@ export function taskFor(wordId, type='meaning', assessment=false) {
     wordId, type, assessment,
     stimulus:contextMode?(assessment?w.second:w.sentence):w.text,
     expected:contextMode?(assessment?w.secondAnswer:w.sentenceMeaning):w.answer,
-    choices:contextMode?(assessment?w.secondChoices:w.sentenceChoices):w.choices,
+    choices:contextMode?(assessment?w.secondChoices:w.sentenceChoices):(assessment?(w.revisitChoices||assessmentChoices[w.id]):w.choices),
     accepted:contextMode?[assessment?w.secondAnswer:w.sentenceMeaning]:w.accepted,
     gloss:w.gloss, word:w,
     materialId:'r3.'+wordId+'.'+type+(assessment?'.independent-v2':'.learning-v1')
@@ -115,6 +121,25 @@ export function startQueue(events=[], visit=0, scenario='start') {
 function parseItem(item) {
   const [wordId,type]=item.split(':');
   return {wordId,type};
+}
+// Small, contrasting reference observations. They are authored fiction, not a recorded learner baseline.
+export const ASSESSMENT_REFERENCE = {
+  short:{prior:'原先独立认识“短的”',meaning:'保持已有基础'},
+  borrow:{prior:'原先认得“借入”，但换句子理解不稳',meaning:'检验句子理解'},
+  because:{prior:'原先需要选项帮助才能理解词义',meaning:'检验独立辨认'},
+  sometimes:{prior:'原先简单句理解不稳定',meaning:'检验换句理解'}
+};
+export function assessmentComparison(event) {
+ const prior=ASSESSMENT_REFERENCE[event.wordId];
+ if(!prior)return null;
+ const independent=event.result==='independent-correct';
+ const updated=independent?(event.wordId==='short'?'本次换一组选项仍独立辨认': '本次在变化材料中独立完成') :
+   event.result==='unknown'?'本次选择了“不知道”，适合再学习和复核':
+   event.result==='unverified'?'本次回答不能可靠评价，暂不下结论':
+   '本次未独立完成，接下来针对性巩固';
+ return {wordId:event.wordId, word:WORD_BY_ID[event.wordId]?.text, prior:prior.prior, updated,
+   interpretation:independent?(event.wordId==='short'?'进一步支持原有基础': '与预设起点相比出现积极表现，仍待跨时间复核'):'尚不能确认预设薄弱点已经改善',
+   next:independent?'后续保持观察': event.type==='context'?'换更容易理解的句子再巩固':'先重新建立词义联系'};
 }
 export function assessmentQueue() {
   return [

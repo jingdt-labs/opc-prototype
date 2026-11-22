@@ -1,11 +1,11 @@
 // R3 student-facing views. No evidence internals or gallery navigation.
-import { DEMOS, progressFor, goalMessage, taskFor, WORD_BY_ID, sessionSummary, suggestedAction, canDeclareGoal } from './r3-model.js';
+import { DEMOS, progressFor, goalMessage, taskFor, WORD_BY_ID, sessionSummary, suggestedAction, canDeclareGoal, assessmentComparison } from './r3-model.js';
 
 const e=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const btn=(label,act,variant='quiet',attrs='')=>'<button type="button" class="r3-btn r3-'+variant+'" data-action="'+act+'" '+attrs+'>'+label+'</button>';
 const brand='<span class="r3-brand"><span class="r3-brand-symbol">✦</span>Luma</span>';
 const chip=(s)=>'<span class="r3-chip">'+s+'</span>';
-const fixtureNote='<span class="r3-demo-tag">演示情境 · 模拟学习历史</span>';
+
 function theme(s) {
   return '<label class="r3-theme-label">外观 <select aria-label="外观主题" data-field="theme">'+
     [['system','跟随系统'],['light','浅色'],['dark','深色']].map(([v,label])=>'<option value="'+v+'" '+(s.theme===v?'selected':'')+'>'+label+'</option>').join('')+'</select></label>';
@@ -22,11 +22,16 @@ function shell(s,active,main) {
   return header(s,active)+'<main class="r3-container">'+main+'</main>';
 }
 function scenarioControls(s) {
-  return '<details class="r3-scenario"><summary>原型体验情境设置</summary>'+
-    '<p>这里是设计验收工具，不是学生日常功能。切换后会使用预设的 500 词汇总情境；本次作答不会自动成为整个词表的测评。</p>'+
-    '<label for="r3-scenario">查看不同阶段</label><select id="r3-scenario" data-field="scenario">'+
-    Object.entries(DEMOS).map(([id,v])=>'<option value="'+id+'" '+(s.scenario===id?'selected':'')+'>'+e(v.label)+'</option>').join('')+
-    '</select>'+btn('重置本地演示','reset-demo','text')+'</details>';
+ return '<div class="r3-demo-tools" role="group" aria-label="原型设计评审进度情境">'+
+   '<span class="r3-demo-tag">进度演示 · 非真实成绩</span>'+
+   '<label for="r3-scenario">快速查看</label><select id="r3-scenario" data-field="scenario" aria-label="选择模拟进度阶段">'+
+   Object.entries(DEMOS).map(([id,v])=>'<option value="'+id+'" '+(s.scenario===id?'selected':'')+'>'+e(v.label)+'</option>').join('')+
+   '</select><span class="r3-demo-help">首页与进展页同步展示模拟情境</span>'+
+   '<details class="r3-demo-extra"><summary>演示设置</summary>'+btn('重置本地演示','reset-demo','text')+'</details></div>';
+}
+const audioSvg='<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6.5 9H3v6h3.5l4.5 4V5Z"/><path d="M15 9a5 5 0 0 1 0 6"/><path d="M18 6a9 9 0 0 1 0 12"/></svg>';
+function audioButton(kind,spoken) {
+ return '<button type="button" class="r3-audio" data-action="pronounce" data-speech-kind="'+kind+'" aria-label="'+e('播放'+(kind==='word'?'单词':'例句')+' '+spoken+' 的英文发音')+'" title="播放英文发音">'+audioSvg+'</button>';
 }
 function progressGraphic(s,compact=false) {
   const p=progressFor(s.scenario);
@@ -38,12 +43,13 @@ function progressGraphic(s,compact=false) {
   ];
   return '<div class="r3-progress '+(compact?'r3-progress-compact':'')+'">'+
     '<div class="r3-progress-heading"><div><span class="r3-eyebrow">整个学习目标</span><h2>向约 500 个高价值词汇的目标前进</h2></div>'+
-    '<div class="r3-progress-score"><strong>'+p.reached+'</strong><span> / 500 已有足够证据</span></div></div>'+
+    '<div class="r3-progress-score"><strong>'+p.reached+'</strong><span> / 500 有可信表现依据</span></div></div>'+
     '<div class="r3-bar" role="img" aria-label="'+segments.map(x=>x[1]+' '+x[2]).join('，')+'">'+
     segments.map(([id,label,value])=>'<span class="r3-bar-'+id+'" title="'+label+' '+value+'" style="width:'+(value/5)+'%"></span>').join('')+
     '</div>'+
     '<div class="r3-legend">'+segments.map(([id,label,value])=>'<div class="r3-legend-item"><i class="r3-dot-'+id+'"></i><span>'+label+'</span><strong>'+value+'</strong></div>').join('')+'</div>'+
-    '<p class="r3-muted r3-progress-foot">'+e(p.note)+' <strong>这是全范围模拟汇总，不是你的实测成绩。</strong></p>'+
+    '<p class="r3-progress-interpret">'+(canDeclareGoal(p)?'整体目标已可信达成；少量波动仍可复核。':'还有 '+p.remaining+' 个学习重点需要巩固或进一步观察。')+'</p>'+ 
+    '<p class="r3-muted r3-progress-foot">'+e(p.note)+' <strong>预设的全范围模拟历史，非实测数据。</strong></p>'+
     '</div>';
 }
 export function login(s) {
@@ -72,7 +78,7 @@ export function home(s) {
   const assessmentReady=s.scenario!=='start'||s.visits>0;
   const title=running?(s.session.type==='assessment'?'上次测评暂停了，继续就好':'上次学到一半，继续就好'):s.visits>0?'接着上次的进展继续':'先从几个常见词开始';
   return shell(s,'home',
-    '<section class="r3-home-top">'+fixtureNote+'<div class="r3-home-grid">'+
+    scenarioControls(s)+'<section class="r3-home-top"><div class="r3-home-grid">'+
     '<div class="r3-hero r3-panel"><span class="r3-eyebrow">现在适合做的事</span>'+
     '<h1>'+title+'</h1>'+
     '<p>'+ (running?'你的上次学习进度已经保留，可以接着做。':s.scenario==='achieved'?'当前阶段已模拟达成。可以选择保持复习，不会自动扩大目标。':'Luma 会把认识的词、需要帮助的词和简单句理解串在一起。无需自己安排词表。')+'</p>'+
@@ -88,30 +94,30 @@ export function home(s) {
     '<p>'+ (canDeclareGoal(p)?'了解为什么现在可以认为目标已达成，以及如何继续保持。':assessmentReady?'用几道独立样题校准学习判断，发现需要巩固的地方。':'先在日常学习里积累一些观察，不必急着参加测评。')+'</p>'+
     btn(canDeclareGoal(p)?'查看达成说明':assessmentReady?'开始阶段测评':'了解阶段测评',canDeclareGoal(p)?'goal-review':assessmentReady?'open-assessment':'assessment-info','text')+'</div></div></section>'+
     '<div class="r3-goal-small"><div><strong>当前目标</strong><span>约 500 个高价值词汇 · 看懂书面词义和适当简单句</span></div>'+btn('查看目标','nav-goal','text')+'</div>'+
-    scenarioControls(s));
+    '');
 }
 export function progress(s) {
  const p=progressFor(s.scenario),m=goalMessage(s.scenario);
- return shell(s,'progress','<div class="r3-page-title"><span class="r3-eyebrow">学习进展</span><h1>比刚开始时，真正前进了多少？</h1>'+
+ return shell(s,'progress',scenarioControls(s)+'<div class="r3-page-title"><span class="r3-eyebrow">学习进展</span><h1>比刚开始时，真正前进了多少？</h1>'+
    '<p>区分原本就会的、学习后取得的新进步，还有需要继续巩固和暂时不能判断的部分。</p></div>'+
    '<div class="r3-panel r3-progress-main">'+progressGraphic(s)+'</div>'+
    '<div class="r3-two-cards"><div class="r3-panel"><span class="r3-overline">与你的起点相比</span><h2>新增进步：'+p.gained+' 个学习重点</h2>'+
    '<p>模拟情境中，这些内容具有与原先表现可比较、并经过适当间隔与简单句观察支持的进展。<b>起点已会的 '+p.base+' 个没有计入新增。</b></p></div>'+
    '<div class="r3-panel"><span class="r3-overline">接下来怎么学</span><h2>'+m.title+'</h2><p>'+m.next+'</p></div></div>'+
    '<div class="r3-page-actions">'+btn('继续学习','start-daily','primary')+' '+btn('查看目标判断','goal-review','outline')+'</div>'+
-   scenarioControls(s));
+   '');
 }
 export function goal(s) {
  const p=progressFor(s.scenario), m=goalMessage(s.scenario);
- return shell(s,'goal','<div class="r3-page-title"><span class="r3-eyebrow">学习目标</span><h1>这段时间，我们想做到什么</h1>'+
+ return shell(s,'goal',scenarioControls(s)+'<div class="r3-page-title"><span class="r3-eyebrow">学习目标</span><h1>这段时间，我们想做到什么</h1>'+
    '<p>范围和希望达到的表现都清楚，日常学习怎么安排，由 Luma 帮你处理。</p></div>'+
    '<div class="r3-panel r3-goal-full"><div><span class="r3-overline">范围</span><h2>约 500 个高价值中考词汇</h2><p>不是整个中考词汇范围，也不是每个词所有义项。</p></div>'+
    '<div><span class="r3-overline">目标表现</span><h2>看懂常见书面词义与适当难度的简单句</h2><p>通过不依赖答案的表现、跨时间保持和阶段测评判断进展。</p></div>'+
    '<div><span class="r3-overline">现在的状态</span><h2>'+m.title+'</h2><p>'+m.detail+'</p></div></div>'+
    '<div class="r3-panel r3-preferences"><div><h3>一次学习多久</h3><p>可以随时结束，不必为了凑时长完成更多题目。</p></div>'+
    '<select data-field="duration" aria-label="调整建议学习时长">'+[20,30,40,60].map(n=>'<option value="'+n+'" '+(s.duration===n?'selected':'')+'>'+n+' 分钟</option>').join('')+'</select></div>'+
-   '<p class="r3-muted">需要变更目标范围或目标表现时，应先确认。演示原型不会擅自将 500 词扩大为完整中考词表。</p>'+
-   '<div class="r3-page-actions">'+btn('重新确认目标','request-goal','outline')+' '+btn('返回学习','nav-home','primary')+'</div>'+scenarioControls(s));
+   '<p class="r3-muted">目标范围与表现已确认，在本演示中保持不变；此处只支持调整建议学习时长。如要变更重要学习目标，需另行确认。</p>'+
+   '<div class="r3-page-actions">'+btn('返回学习','nav-home','primary')+'</div>');
 }
 function options(task) {
  return '<div class="r3-options" role="group" aria-label="可选择的答案">'+task.choices.map((choice,i)=>
@@ -121,11 +127,11 @@ function learnCard(s,task) {
  const w=task.word;
  const guide=w.guide;
  return '<div class="r3-study"><div class="r3-study-top"><span class="r3-eyebrow">先理解，再试一试</span>'+
-   '<h1>'+e(w.text)+'</h1><p class="r3-study-pos">'+e(w.pos)+'</p></div>'+
+   '<h1 class="r3-speech-line">'+e(w.text)+audioButton('word',w.text)+'</h1><p class="r3-study-pos">'+e(w.pos)+'</p></div>'+
    '<div class="r3-meaning"><span>这次先记住</span><strong>'+e(w.sense)+'</strong><p>'+e(w.note)+'</p></div>'+
-   '<div class="r3-sentence-box"><span>放在句子里</span><div class="r3-sentence">'+e(w.sentence)+'</div>'+
+   '<div class="r3-sentence-box"><span>放在句子里</span><div class="r3-sentence r3-speech-line">'+e(w.sentence)+audioButton('sentence',w.sentence)+'</div>'+
    '<p>'+e(w.guide?.translation||w.sentenceMeaning)+'</p>'+
-   '<div class="r3-sentence-actions">'+btn('听英文示范','pronounce','text')+'</div>'+
+   ''+
    (s.session?.micStatus?'<p class="r3-status" role="status">'+e(s.session.micStatus)+'</p>':'')+'</div>'+
    '<div class="r3-tip"><strong>再理解一点</strong><p>'+e(w.contrast||'先抓住当前词义，其他用法可以以后再补。')+'</p></div>'+
    (guide&&guide.sections?.length?'<details class="r3-extra"><summary>想了解更多例子和区别</summary>'+
@@ -143,7 +149,7 @@ function questionCard(s,task) {
  else input=options(task);
  return '<div class="r3-question"><span class="r3-eyebrow">'+(assessment?'独立检查':isMeaning?'认识词义':'理解简单句')+'</span>'+
     '<h2>'+title+'</h2>'+
-    '<div class="r3-stimulus '+(isMeaning?'r3-word':'r3-context')+'">'+e(task.stimulus)+'</div>'+
+    '<div class="r3-stimulus '+(isMeaning?'r3-word':'r3-context')+'"><span class="r3-stimulus-line">'+e(task.stimulus)+(!assessment?audioButton(isMeaning?'word':'sentence',task.stimulus):'')+'</span></div>'+
     input+
     (f.micStatus?'<p class="r3-status" role="status">'+e(f.micStatus)+'</p>':'')+
     (f.transcriptPending?'<p class="r3-status">请核对上面的识别文字，确认无误后再提交；识别出错不会直接判你不会。</p>':'')+
@@ -166,8 +172,9 @@ function feedbackCard(s,task) {
    '这次尝试还没有独立完成。先理解正确联系，后面会安排适合的巩固。';
  return '<div class="r3-feedback"><span class="r3-feedback-symbol">'+(good?'✓':supported?'◌':uncertain?'?':'↗')+'</span>'+
    '<h1>'+heading+'</h1><p>'+detail+'</p>'+
-   '<div class="r3-feedback-content"><span>这次学习重点</span><strong>'+e(task.word.text)+' · '+e(task.word.sense)+'</strong>'+
-   '<p>'+e(task.word.note)+'</p>'+(task.type==='context'?'<p>'+e(task.sentence||task.stimulus)+'</p>':'')+'</div>'+
+   '<div class="r3-feedback-content"><span>这次学习重点</span><strong class="r3-speech-line">'+e(task.word.text)+audioButton('word',task.word.text)+' · '+e(task.word.sense)+'</strong>'+
+   '<p>'+e(task.word.note)+'</p><p class="r3-speech-line">'+e(task.type==='context'?task.stimulus:task.word.sentence)+audioButton('sentence',task.type==='context'?task.stimulus:task.word.sentence)+'</p>'+ 
+   (s.session?.micStatus?'<p class="r3-status" role="status">'+e(s.session.micStatus)+'</p>':'')+'</div>'+
    '<div class="r3-actions">'+btn('继续下一项','next','primary')+
    (uncertain?btn('换成选项练习','retry-options','outline'):'')+
    btn('再看一遍解释','learn','text')+'</div></div>';
@@ -213,28 +220,33 @@ export function assessmentResult(s) {
  const done=events.filter(x=>x.result==='independent-correct');
  const uncertain=events.filter(x=>x.result!=='independent-correct');
  const weakWords=[...new Set(uncertain.map(x=>WORD_BY_ID[x.wordId]?.text).filter(Boolean))];
+ const comparisons=events.map(assessmentComparison).filter(Boolean);
  return shell(s,'home','<section class="r3-result"><span class="r3-eyebrow">阶段测评已结束</span><h1>这次独立检查说明了什么</h1>'+
-   '<p class="r3-lead">不做高压分数排名。这里是几道代表性样题的表现回顾；全范围目标仍需更多可信证据。</p>'+
-   '<div class="r3-result-list r3-result-list-two"><div class="r3-panel"><h3>在这些新材料中独立完成</h3><strong class="r3-large">'+done.length+' / '+events.length+'</strong><p>只说明这次抽样条件下的独立表现。</p></div>'+
-   '<div class="r3-panel"><h3>接下来优先关注</h3><p>'+e(weakWords.length?weakWords.join('、'):'保持已取得的表现，继续了解目标范围中缺少证据的部分')+'</p>'+
-   '<small>不把单次错误当成永久标签</small></div></div>'+
+   '<p class="r3-lead">用变化后的材料再次尝试，看看哪些联系更稳，哪些还需要帮助。少量样题不会决定全部目标是否达成。</p>'+
+   '<div class="r3-result-list r3-result-list-two"><div class="r3-panel"><h3>本次有独立表现支持</h3><strong class="r3-large">'+done.length+' / '+events.length+'</strong><p>这些新材料中的独立成功，为当前表现增加了一份证据。</p></div>'+
+   '<div class="r3-panel"><h3>需要继续核查的部分</h3><p>'+e(weakWords.length?weakWords.join('、'):'这次样题没有明显困难；仍要关注尚缺少观察的部分')+'</p>'+
+   '<small>一次失误不等于已经遗忘，一次正确也不代表长期保持</small></div></div>'+
+   '<div class="r3-panel r3-assessment-compare"><span class="r3-eyebrow">与学习前相比 · 预设可比历史演示</span>'+
+   '<p class="r3-muted">“原先”来自预设示例，“本次”来自刚刚的本地作答。仅用于评审反馈语义，不构成真实的跨时间学习效果证据。</p>'+
+   '<div class="r3-assessment-rows">'+comparisons.map(x=>'<div class="r3-assessment-row"><strong>'+e(x.word)+'</strong>'+
+     '<div><span>原先：'+e(x.prior)+'</span><span>本次：'+e(x.updated)+'</span><small>'+e(x.interpretation)+'</small></div></div>').join('')+'</div></div>'+
    '<p class="r3-follow">后续学习建议：'+e(suggestedAction(s.events))+'</p>'+
    '<div class="r3-actions">'+btn('回到学习首页','return-home','primary')+btn('查看整体进展','nav-progress','outline')+'</div>'+
-   '<p class="r3-muted">测评的本地作答记录会保留；预设全范围模拟数据不会被少量样题自动改写。</p></section>');
+   '<p class="r3-muted">本次样题只影响后续演示学习重点；预设的整个 500 词进度不会自动重算。</p></section>');
 }
 export function goalReview(s) {
  const p=progressFor(s.scenario),m=goalMessage(s.scenario),achieved=canDeclareGoal(p);
- return shell(s,'progress','<section class="r3-goal-review"><span class="r3-eyebrow">目标达成回顾 · 演示情境</span>'+
+ return shell(s,'progress',scenarioControls(s)+'<section class="r3-goal-review"><span class="r3-eyebrow">目标达成回顾 · 演示情境</span>'+
    '<div class="r3-review-mark">'+(achieved?'✓':'↗')+'</div><h1>'+m.title+'</h1><p class="r3-lead">'+m.detail+'</p>'+
    '<div class="r3-panel r3-review-details">'+progressGraphic(s,true)+
    '<div class="r3-divider"></div><h3>'+ (achieved?'为什么这次可以确认达成':'为什么现在还不能宣布达成')+'</h3>'+
-   '<p>'+ (achieved?'模拟情境假设：完整目标范围已有充分覆盖；词义辨认、适当新句理解、跨时间复检和阶段独立测评共同支持整体结论。允许个别偶发波动，但没有未解决的重大证据缺口。':
+   '<p>'+ (achieved?'模拟情境假设：目标范围的独立词义辨认、新句理解、跨时间复检和阶段独立测评已有充分整体证据。图中少量待巩固及待复核属于有限波动，并非足以推翻结论的重大缺口；不要求零失误。':
        '仍有需要巩固或尚无足够证据的内容。已掌握和新增进步不会因此抹除；未观察也不被解释为不会。')+'</p>'+
    '<p class="r3-muted">这只针对约 500 词的指定书面词义与简单句目标，不表示英语全部能力达标，也不保证永久记得。</p></div>'+
    '<div class="r3-actions">'+btn(achieved?'安排保持复习':'继续解决下一步','start-daily','primary')+
    btn('返回整体进展','nav-progress','outline')+'</div>'+
    (achieved?'<p class="r3-muted">如需开始新的学习范围，请先确认新的目标；系统不会自动扩大当前范围。</p>':'')+
-   '</section>'+scenarioControls(s));
+   '</section>');
 }
 export function renderPage(s) {
  if(!s.entered)return login(s);

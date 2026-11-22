@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { GOAL_SIZE, DEMOS, WORDS, taskFor, progressFor, canDeclareGoal, goalMessage,
-  evaluateResponse, startQueue, assessmentQueue, sessionSummary, suggestedAction } from '../js/r3-model.js';
+  evaluateResponse, startQueue, assessmentQueue, assessmentComparison, sessionSummary, suggestedAction } from '../js/r3-model.js';
 import { renderPage } from '../js/r3-view.js';
 
 const state=(overrides={})=>({
@@ -17,14 +17,17 @@ test('scenario aggregates cover the specified full Goal with a distinct unknown 
  assert.equal(progressFor('start').unknown,500);
  assert.equal(progressFor('start').reached,0);
 });
-test('only a verified, fully covered simulated whole-range review may declare completion',()=>{
+test('whole-range verdict allows limited fluctuations but rejects material gaps',()=>{
  for(const key of Object.keys(DEMOS)){
   assert.equal(canDeclareGoal(progressFor(key)),key==='achieved',key);
  }
  assert.match(goalMessage('gap').detail,/13/);
  assert.match(goalMessage('near').title,/接近/);
  assert.match(goalMessage('achieved').detail,/跨时间/);
- assert.equal(canDeclareGoal({...progressFor('achieved'),unknown:1}),false);
+ assert.ok(progressFor('achieved').strengthen>0);
+ assert.ok(progressFor('achieved').unknown>0);
+ assert.equal(canDeclareGoal({...progressFor('achieved'),materialRisk:true}),false);
+ assert.equal(canDeclareGoal({...progressFor('achieved'),evidenceReview:'insufficient'}),false);
 });
 test('meaning recognition uses the word meaning, not the sentence answer',()=>{
  const word=taskFor('borrow','meaning');
@@ -97,7 +100,9 @@ test('student home centers next action and Goal progress, not R2 gallery or old 
  const html=renderPage(state());
  assert.match(html,/开始本次学习/);
  assert.match(html,/尚待了解/);
- assert.match(html,/全范围模拟汇总/);
+ assert.match(html,/全范围模拟历史/);
+ assert.match(html,/data-field="scenario"/);
+ assert.match(html,/持续学习中/);
  assert.doesNotMatch(html,/为英语精进，日拱一卒/);
  assert.doesNotMatch(html,/设计评审专用|探索 R2 动态交互样本/);
 });
@@ -130,4 +135,60 @@ test('independent assessment does not expose an auditory clue before answering',
  assert.doesNotMatch(html,/data-action="pronounce"/);
  assert.doesNotMatch(html,/data-action="learn"/);
  assert.doesNotMatch(html,/data-action="show-options"/);
+});
+
+test('review switcher shows meaningful nonzero progress and matches on home, detail and Goal',()=>{
+ const active=state({scenario:'growing'});
+ const home=renderPage(active);
+ const detail=renderPage({...active,view:'progress'});
+ const goal=renderPage({...active,view:'goal-review'});
+ for(const html of [home,detail,goal]){
+  assert.match(html,/data-field="scenario"/);
+  assert.match(html,/136/);
+  assert.match(html,/92/);
+  assert.match(html,/194/);
+  assert.match(html,/需要巩固/);
+ }
+ const newStart=renderPage(state());
+ assert.match(newStart,/500/);
+ assert.match(newStart,/尚待了解/);
+});
+test('word and sentence audio icons appear inline in Learn, practice and feedback, not assessment',()=>{
+ const base={type:'daily',items:assessmentQueue(),idx:0,draft:'',mode:'choice',finished:false,micStatus:''};
+ const learn=renderPage(state({view:'focus',session:{...base,stage:'learn'}}));
+ assert.match(learn,/data-speech-kind="word"/);
+ assert.match(learn,/data-speech-kind="sentence"/);
+ assert.match(learn,/aria-label="播放单词/);
+ assert.match(learn,/aria-label="播放例句/);
+ const practice=renderPage(state({view:'focus',session:{...base,stage:'ask'}}));
+ assert.match(practice,/data-speech-kind="word"/);
+ const feedback=renderPage(state({view:'focus',session:{...base,stage:'feedback',lastAttempt:{result:'independent-correct'}}}));
+ assert.match(feedback,/data-speech-kind="sentence"/);
+});
+test('assessment uses changed sentences and alternate meaning choices, never an identical practice item',()=>{
+ for(const item of assessmentQueue()){
+  const learning=taskFor(item.wordId,item.type);
+  const assessment=taskFor(item.wordId,item.type,true);
+  if(item.type==='context')assert.notEqual(learning.stimulus,assessment.stimulus);
+  else assert.notDeepEqual(learning.choices,assessment.choices);
+ }
+});
+test('assessment comparison separates authored earlier baseline from this local sample',()=>{
+ const e={kind:'attempt',wordId:'borrow',type:'context',result:'independent-correct'};
+ const c=assessmentComparison(e);
+ assert.match(c.prior,/原先/);
+ assert.match(c.updated,/独立/);
+ const id='demo-assessment';
+ const html=renderPage(state({view:'assessment-result',session:{id,type:'assessment',finished:true},
+   events:[{...e,sessionId:id,at:'2026-11-22T00:00:00Z'}]}));
+ assert.match(html,/预设可比历史演示/);
+ assert.match(html,/原先/);
+ assert.match(html,/本次/);
+ assert.match(html,/不构成真实的跨时间/);
+});
+test('Goal page offers only supported time preference, no misleading re-confirm action',()=>{
+ const html=renderPage(state({view:'goal'}));
+ assert.match(html,/data-field="duration"/);
+ assert.doesNotMatch(html,/request-goal|重新确认目标/);
+ assert.match(html,/目标范围与表现已确认/);
 });

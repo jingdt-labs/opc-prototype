@@ -243,3 +243,40 @@ html[data-theme="dark"] { --r3-violet:#a9b7ff; --r3-violet-strong:#c7cfff; --r3-
  .r3-result-list p { min-height:unset; }
  .r3-goal-small { flex-direction:column;align-items:flex-start; }
 }
+
+/* R3 Final Repair — compact review controls, inline pronunciation and assessment comparison */
+.r3-demo-tools{display:flex;align-items:center;flex-wrap:wrap;gap:9px 13px;margin:0 0 20px;padding:10px 14px;background:var(--surface-subtle);border:1px dashed var(--line);border-radius:13px;color:var(--muted);font-size:12px;line-height:1.4}
+.r3-demo-tools label{font-weight:680;color:var(--ink)}
+.r3-demo-tools select{max-width:210px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);padding:7px 9px;font-size:12px;font-weight:700}
+.r3-demo-help{font-size:11px;color:var(--muted)}
+.r3-demo-extra{margin-left:auto}
+.r3-demo-extra summary{cursor:pointer;color:var(--muted);font-size:11px}
+.r3-demo-extra>.r3-btn{margin-top:7px}
+.r3-progress-interpret{margin:18px 0 0;font-size:13px;font-weight:720;color:var(--ink);line-height:1.65}
+.r3-progress-foot{margin-top:10px}
+.r3-speech-line{display:inline-flex;align-items:center;flex-wrap:wrap;vertical-align:middle;gap:2px;max-width:100%}
+.r3-audio{display:inline-grid;vertical-align:middle;place-items:center;flex:0 0 auto;width:32px;height:32px;padding:6px;border-radius:9px;color:var(--r3-violet-strong);background:transparent;cursor:pointer;margin-left:4px}
+.r3-audio:hover{background:var(--r3-bg-tint)}
+.r3-audio:focus-visible{outline:3px solid var(--r3-violet);outline-offset:2px}
+.r3-audio svg{width:18px;height:18px}
+.r3-stimulus-line{display:inline-flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:4px;max-width:100%}
+.r3-stimulus-line>.r3-audio{margin-left:4px}
+.r3-feedback-content .r3-speech-line{font-size:16px;line-height:1.65}
+.r3-feedback-content strong.r3-speech-line{display:inline-flex;margin:9px 0 4px;font-size:19px}
+.r3-study-top .r3-speech-line{margin-bottom:2px}
+.r3-assessment-compare{padding:22px 28px;margin:0 0 20px}
+.r3-assessment-compare>.r3-muted{margin:9px 0 13px}
+.r3-assessment-rows{display:grid;grid-template-columns:1fr 1fr;gap:11px 24px}
+.r3-assessment-row{border-top:1px solid var(--line);padding:13px 2px 4px;display:grid;grid-template-columns:110px minmax(0,1fr);column-gap:10px}
+.r3-assessment-row strong{font-family:Georgia,serif;font-weight:600;font-size:18px;color:var(--ink-strong)}
+.r3-assessment-row span,.r3-assessment-row small{display:block;font-size:12px;line-height:1.6;margin-bottom:5px;color:var(--muted)}
+.r3-assessment-row small{color:var(--ink);font-weight:650}
+@media(max-width:650px){
+ .r3-demo-tools{gap:8px 10px}
+ .r3-demo-help{display:none}
+ .r3-demo-extra{margin-left:0}
+ .r3-assessment-rows{grid-template-columns:1fr}
+ .r3-assessment-compare{padding:18px}
+ .r3-assessment-row{grid-template-columns:100px minmax(0,1fr)}
+ .r3-audio{width:35px;height:35px}
+}
