@@ -68,7 +68,9 @@ test('a weak task influences the next daily session, with no finite session wall
  const ev=[{kind:'attempt',wordId:'borrow',result:'unknown'}];
  const after=startQueue(ev,1,'start');
  assert.equal(after[0].wordId,'borrow');
- assert.equal(after[0].type,'context');
+ assert.equal(after[0].type,'meaning');
+ const corrected=startQueue([...ev,{kind:'attempt',wordId:'borrow',type:'meaning',result:'independent-correct'}],1,'start');
+ assert.notEqual(corrected[0].wordId,'borrow');
  for(let visit=0;visit<28;visit++)assert.ok(startQueue([],visit,'start').length>0);
  assert.match(suggestedAction(ev),/borrow/);
 });

@@ -98,12 +98,16 @@ export function startQueue(events=[], visit=0, scenario='start') {
     achieved:['because:context','short:context','borrow:meaning','sometimes:context']
   };
   const base=plans[scenario]||plans.start;
-  const weak=[...events].reverse().filter(e=>e.kind==='attempt'&&['unknown','incorrect','unverified'].includes(e.result)).map(e=>e.wordId);
-  const firstWeak=weak.find(id=>WORD_BY_ID[id]);
+  const latest=new Map();
+  for(const event of [...events].reverse())
+    if(event.kind==='attempt'&&!latest.has(event.wordId)) latest.set(event.wordId,event);
+  const recent=[...latest.values()].filter(e=>WORD_BY_ID[e.wordId]);
+  const firstWeak=recent.find(e=>['unknown','incorrect','unverified'].includes(e.result))
+    || recent.find(e=>e.result==='supported-correct');
   const shift=visit===0?0:visit%base.length;
   const rotated=base.slice(shift).concat(base.slice(0,shift));
   if(firstWeak) {
-    const next=firstWeak+':context';
+    const next=firstWeak.wordId+':'+(firstWeak.type==='context'?'context':'meaning');
     return [next,...rotated.filter(x=>x!==next)].slice(0,5).map(parseItem);
   }
   return rotated.map(parseItem);
@@ -131,7 +135,10 @@ export function sessionSummary(events) {
   };
 }
 export function suggestedAction(events) {
-  const latest=[...events].reverse().find(e=>e.kind==='attempt'&&['unknown','incorrect','unverified'].includes(e.result));
-  if(latest) return '先巩固 '+(WORD_BY_ID[latest.wordId]?.text||'刚才不稳定的内容')+'，再继续学习。';
+  const byWord=new Map();
+  for(const event of [...events].reverse())
+    if(event.kind==='attempt'&&!byWord.has(event.wordId)) byWord.set(event.wordId,event);
+  const latest=[...byWord.values()].find(e=>['unknown','incorrect','unverified','supported-correct'].includes(e.result));
+  if(latest) return (latest.result==='supported-correct'?'稍后独立确认 ':'先巩固 ')+(WORD_BY_ID[latest.wordId]?.text||'刚才学习的内容')+'，再继续学习。';
   return '下一次会结合刚才的表现，安排少量新内容和适当复习。';
 }
